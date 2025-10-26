@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { apiFetch } from '@/app/utils/apiClient';
+
 
 // Định nghĩa kiểu dữ liệu cho EmployeeType
 interface EmployeeTypeDto {
@@ -63,31 +65,14 @@ export default function EmployeeTypePage() {
 
     // Tải dữ liệu loại nhân viên từ API khi component được mount
     useEffect(() => {
-        // Kiểm tra token JWT
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/auth/login";
-            return;
-        }
-
-        // Thiết lập header với token
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
-
         // Hàm tải dữ liệu
         async function loadData() {
             try {
                 // Tải cả loại nhân viên và nhân viên để đếm số nhân viên theo loại
-                const [typeRes, empRes] = await Promise.all([
-                    fetch("https://localhost:7207/api/employeetype", { headers }),
-                    fetch("https://localhost:7207/api/employee", { headers })
+                const [types, employees] = await Promise.all([
+                    apiFetch("/employeetype"),
+                    apiFetch("/employee")
                 ]);
-
-                // Kiểm tra lỗi
-                const types = await typeRes.json();
-                const employees = await empRes.json();
 
                 // Đếm số nhân viên theo loại
                 const counts: Record<number, number> = {};
@@ -120,63 +105,24 @@ export default function EmployeeTypePage() {
 
     // Hàm xử lý lưu (thêm hoặc sửa) loại nhân viên
     async function handleSave() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
-
         try {
-            // Chuẩn bị dữ liệu gửi đi
-            let body: any = {};
+            const body = {
+                id: currentType?.id,
+                typeName: currentType?.typeName,
+            };
 
-            // Phân biệt giữa thêm và sửa
             if (modalMode === "add") {
-                body = {
-                    typeName: currentType?.typeName
-                };
+                await apiFetch("/employeetype", "POST", body);
             } else {
-                body = {
-                    id: currentType?.id,
-                    typeName: currentType?.typeName
-                };
+                await apiFetch("/employeetype", "PUT", body);
             }
 
-            // Gửi yêu cầu đến API
-            const url = modalMode === "add"
-                ? "https://localhost:7207/api/employeetype"
-                : "https://localhost:7207/api/employeetype";
-
-            // Chọn phương thức HTTP phù hợp
-            const method = modalMode === "add" ? "POST" : "PUT";
-
-            // Thực hiện yêu cầu fetch
-            const res = await fetch(url, {
-                method,
-                headers,
-                body: JSON.stringify(body)
-            });
-
-            // Kiểm tra lỗi
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
-            // Hiển thị thông báo thành công
             toast.success("Employee type saved successfully", {
                 position: "top-right",
                 autoClose: 3000
             });
-
-            // Cập nhật lại danh sách loại nhân viên
-            const empTypeRes = await fetch("https://localhost:7207/api/employeetype", { headers });
-            const empTypeData = await empTypeRes.json();
-            setEmployeeTypes(empTypeData);
-
-            // Đóng modal
+            const updated = await apiFetch("/employeetype");
+            setEmployeeTypes(updated);
             (window as any).jQuery("#exampleModal").modal("hide");
         } catch (err: any) {
             // Xử lý lỗi
@@ -197,33 +143,14 @@ export default function EmployeeTypePage() {
     async function handleDelete() {
         if (!deleteTypeId) return;
 
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
-
         try {
-            const res = await fetch(`https://localhost:7207/api/employeetype/${deleteTypeId}`, {
-                method: "DELETE",
-                headers
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
+            await apiFetch(`/employeetype/${deleteTypeId}`, "DELETE");
             toast.success("Employee type deleted successfully", {
                 position: "top-right",
                 autoClose: 3000
             });
-
-            setEmployeeTypes(employeeTypes.filter(type => type.id !== deleteTypeId));
+            setEmployeeTypes(employeeTypes.filter((t) => t.id !== deleteTypeId));
             setDeleteTypeId(null);
-
             (window as any).jQuery("#confirmDeleteModal").modal("hide");
         } catch (err: any) {
             const error = err as Error;

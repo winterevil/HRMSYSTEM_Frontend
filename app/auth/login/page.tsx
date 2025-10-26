@@ -1,22 +1,29 @@
+﻿/* eslint-disable @next/next/no-img-element */
 "use client";
-import React from "react";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/app/utils/apiClient";
+
 
 export default function LoginPage() {
-    const [email, setEmail] = React.useState("");
-    const [password, setPassword] = React.useState("");
-    const [error, setError] = React.useState("");
+    const router = useRouter();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setLoading(true);
 
         try {
-            const res = await fetch("https://localhost:7207/api/auth/login", {
+            const res = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email, password }),
             });
 
             if (!res.ok) {
@@ -29,10 +36,16 @@ export default function LoginPage() {
             console.log("Login success:", data);
 
             localStorage.setItem("jwt", data.token);
+            document.cookie = `jwt=${data.token}; path=/; max-age=900; secure; samesite=strict`;
 
-            window.location.href = "/main/hrms/dashboard";
+            setTimeout(() => {
+                router.push("/main/hrms/dashboard");
+            }, 1500);
         } catch (err) {
-            setError("Server error" + err);
+            console.error("Login error:", err);
+            setError(err.message || "Server error");
+        } finally {
+            setLoading(false);
         }
     };
     return (
@@ -45,24 +58,25 @@ export default function LoginPage() {
                     <div className="card-body">
                         <div className="card-title">Login to your account</div>
                         <form onSubmit={handleLogin}>
-                        <div className="form-group">
-                            <input type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email"
-                                value={email} onChange={(e) => setEmail(e.target.value)} />
-                        </div>
-                        <div className="form-group">
-                            <input type="password" className="form-control" id="exampleInputPassword1" placeholder="Password"
-                                value={password} onChange={(p) => setPassword(p.target.value)} />
-                        </div>
-                        {error && <div className="alert alert-danger">{error}</div>}
-                        <div className="form-group">
-                            <label className="custom-control custom-checkbox">
-                                <input type="checkbox" className="custom-control-input" />
-                                <span className="custom-control-label">Remember me</span>
-                            </label>
-                            <label className="form-label"><a href="/auth/forgot-password" className="float-right small">I forgot password</a></label>
-                        </div>
-                        <div className="form-footer">
-                            <button type="submit" className="btn btn-primary btn-block" title="">Sign in</button>
+                            <div className="form-group">
+                                <input type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email"
+                                    value={email} onChange={(e) => setEmail(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <input type="password" className="form-control" id="exampleInputPassword1" placeholder="Password"
+                                    value={password} onChange={(p) => setPassword(p.target.value)} />
+                            </div>
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            <div className="form-group">
+                                <label className="custom-control custom-checkbox">
+                                    <input type="checkbox" className="custom-control-input" />
+                                    <span className="custom-control-label">Remember me</span>
+                                </label>
+                                <label className="form-label"><a href="/auth/forgot-password" className="float-right small">I forgot password</a></label>
+                            </div>
+                            <div className="form-footer">
+                                <button type="submit" className="btn btn-primary btn-block" title="" disabled={loading}>{loading ? "Signing in..." : "Sign in"}
+                                </button>
                             </div>
                         </form>
                     </div>

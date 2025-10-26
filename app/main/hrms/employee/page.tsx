@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { apiFetch } from "@/app/utils/apiClient";
 
 // Định nghĩa kiểu dữ liệu cho Employee
 interface EmployeeDto {
@@ -176,50 +177,24 @@ export default function EmployeePage() {
 
     // Load dữ liệu ban đầu
     useEffect(() => {
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/auth/login";
-            return;
-        }
-
-        // Thiết lập headers với token
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
-
         // Hàm load dữ liệu
         async function loadData() {
             try {
-                // Gọi API đồng thời
-                const [empRes, roleRes, depRes, typeRes] = await Promise.all([
-                    fetch("https://localhost:7207/api/employee", { headers }),
-                    fetch("https://localhost:7207/api/role", { headers }),
-                    fetch("https://localhost:7207/api/department", { headers }),
-                    fetch("https://localhost:7207/api/employeetype", { headers }),
+                const [emps, rolesData, deps, types] = await Promise.all([
+                    apiFetch("/employee"),
+                    apiFetch("/role"),
+                    apiFetch("/department"),
+                    apiFetch("/employeetype"),
                 ]);
-
-                // Kiểm tra lỗi
-                if (!empRes.ok) throw new Error(await empRes.text());
-                if (!roleRes.ok) throw new Error(await roleRes.text());
-                if (!depRes.ok) throw new Error(await depRes.text());
-                if (!typeRes.ok) throw new Error(await typeRes.text());
-
-                // Chuyển đổi dữ liệu sang JSON
-                const employees = await empRes.json();
-                const departments = await depRes.json();
-                const employeeTypes = await typeRes.json();
-                const rolesData = await roleRes.json();
-
-                // Cập nhật state
-                setEmployees(employees);
+                setEmployees(emps);
                 setRoles(rolesData);
-                setDepartments(departments);
-                setEmployeeTypes(employeeTypes);
-                setLoading(false);
+                setDepartments(deps);
+                setEmployeeTypes(types);
             } catch (err: unknown) {
                 const error = err as Error;
                 setError(error.message);
+                setLoading(false);
+            } finally {
                 setLoading(false);
             }
         }
@@ -233,14 +208,6 @@ export default function EmployeePage() {
 
     // Xử lý lưu (thêm/sửa)
     async function handleSave() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-        };
-
         try {
             // Chuẩn bị dữ liệu gửi đi 
             const roleName = roles.find(r => r.id === currentEmp.roleId)?.name || "";
@@ -281,46 +248,22 @@ export default function EmployeePage() {
                 };
             }
 
-            // Gọi API tương ứng
-            const url = modalMode === "add"
-                ? "https://localhost:7207/api/employee"
-                : "https://localhost:7207/api/employee";
-
-            // Phương thức tương ứng
             const method = modalMode === "add" ? "POST" : "PUT";
-
-            // Gọi API
-            const res = await fetch(url, {
-                method,
-                headers,
-                body: JSON.stringify(body),
-            });
-
-            // Kiểm tra lỗi
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
+            await apiFetch("/employee", method, body);
             // Thành công
             toast.success("Employee saved successfully", {
                 position: "top-right",
                 autoClose: 3000,
             });
 
-            // Cập nhật lại danh sách
-            const empRes = await fetch("https://localhost:7207/api/employee", { headers });
-            const employees = await empRes.json();
-            setEmployees(employees);
-
-            // Đóng modal
+            setEmployees(await apiFetch("/employee"));
             (window as any).$("#exampleModal").modal("hide");
         } catch (err: unknown) {
             // Xử lý lỗi
             const error = err as Error;
             toast.error(error.message, {
                 position: "top-right",
-                autoClose: 5000,
+                autoClose: 3000,
             });
         }
     }
@@ -335,25 +278,8 @@ export default function EmployeePage() {
         // Kiểm tra nếu không có id thì dừng
         if (!deleteEmpId) return;
 
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-        };
-
         try {
-            const res = await fetch(`https://localhost:7207/api/employee/${deleteEmpId}`, {
-                method: "DELETE",
-                headers,
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
+            await apiFetch(`/employee/${deleteEmpId}`, "DELETE");
             toast.success("Employee deleted successfully", {
                 position: "top-right",
                 autoClose: 3000,
@@ -368,7 +294,7 @@ export default function EmployeePage() {
             const error = err as Error;
             toast.error(error.message, {
                 position: "top-right",
-                autoClose: 5000,
+                autoClose: 3000,
             });
         }
     }

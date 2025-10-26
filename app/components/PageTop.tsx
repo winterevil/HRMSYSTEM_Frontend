@@ -1,6 +1,33 @@
-import React from 'react';
+﻿"use client";
+import React from "react";
+import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/app/utils/apiClient";
 
 export default function PageTop() {
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem("jwt");
+            if (token) {
+                await fetch(`${API_BASE_URL}/auth/logout`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                });
+            }
+        } catch (error) {
+            console.error("Logout error:", error);
+        } finally {
+            // Xoá token và chuyển hướng
+            localStorage.removeItem("jwt");
+            document.cookie = "jwt=; path=/; max-age=0";
+            router.push("/auth/login");
+        }
+    };
+
     return (
         <div id="page_top" className="section-body top_dark sticky-top">
             <div className="container-fluid">
@@ -145,7 +172,7 @@ export default function PageTop() {
                                     <div className="dropdown-divider"></div>
                                     <a className="dropdown-item" href="javascript:void(0)"><i className="dropdown-icon fa-solid fa-circle-question"></i> Need help?</a>
                                     <a className="dropdown-item" href="/auth/forgot-password"><i className="dropdown-icon fa-solid fa-lock-open"></i> Forgot Password</a>
-                                    <a className="dropdown-item" href="/auth/login"><i className="dropdown-icon fa-solid fa-right-from-bracket"></i> Sign out</a>
+                                    <a className="dropdown-item" href="#" onClick={handleLogout}><i className="dropdown-icon fa-solid fa-right-from-bracket"></i> Sign out</a>
                                 </div>
                             </div>
                         </div>

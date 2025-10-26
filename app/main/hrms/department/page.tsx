@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { apiFetch } from "@/app/utils/apiClient";
 
 // Định nghĩa kiểu dữ liệu cho phòng ban
 interface DepartmentDto {
@@ -62,31 +63,34 @@ export default function DepartmentPage() {
     // Tải dữ liệu loại nhân viên từ API khi component được mount
     useEffect(() => {
         // Kiểm tra token JWT
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/auth/login";
-            return;
-        }
+        //const token = localStorage.getItem("jwt");
+        //if (!token) {
+        //    window.location.href = "/auth/login";
+        //    return;
+        //}
 
-        // Thiết lập header với token
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
+        //// Thiết lập header với token
+        //const headers = {
+        //    "Authorization": `Bearer ${token}`,
+        //    "Content-Type": "application/json"
+        //};
 
         // Hàm tải dữ liệu
         async function loadData() {
             try {
-                // Tải cả phòng ban và nhân viên để đếm số nhân viên theo phòng ban
-                const [deptRes, empRes] = await Promise.all([
-                    fetch("https://localhost:7207/api/department", { headers }),
-                    fetch("https://localhost:7207/api/employee", { headers })
+                //// Tải cả phòng ban và nhân viên để đếm số nhân viên theo phòng ban
+                //const [deptRes, empRes] = await Promise.all([
+                //    fetch("https://localhost:7207/api/department", { headers }),
+                //    fetch("https://localhost:7207/api/employee", { headers })
+                //]);
+
+                //// Kiểm tra lỗi
+                //const depts = await deptRes.json();
+                //const employees = await empRes.json();
+                const [depts, employees] = await Promise.all([
+                    apiFetch("/department"),
+                    apiFetch("/employee"),
                 ]);
-
-                // Kiểm tra lỗi
-                const depts = await deptRes.json();
-                const employees = await empRes.json();
-
                 // Đếm số nhân viên theo phòng ban
                 const counts: Record<number, number> = {};
                 employees.forEach((emp: any) => {
@@ -118,51 +122,57 @@ export default function DepartmentPage() {
 
     // Hàm xử lý lưu (thêm hoặc sửa) phòng ban
     async function handleSave() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
+        //const token = localStorage.getItem("jwt");
+        //if (!token) return;
 
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
+        //const headers = {
+        //    "Authorization": `Bearer ${token}`,
+        //    "Content-Type": "application/json"
+        //};
 
         try {
             // Chuẩn bị dữ liệu gửi đi
-            let body: any = {};
+            //let body: any = {};
 
-            // Phân biệt giữa thêm và sửa
-            if (modalMode === "add") {
-                body = {
-                    departmentName: currentDept?.departmentName
-                };
-            } else {
-                body = {
-                    id: currentDept?.id,
-                    departmentName: currentDept?.departmentName
-                };
-            }
+            //// Phân biệt giữa thêm và sửa
+            //if (modalMode === "add") {
+            //    body = {
+            //        departmentName: currentDept?.departmentName
+            //    };
+            //} else {
+            //    body = {
+            //        id: currentDept?.id,
+            //        departmentName: currentDept?.departmentName
+            //    };
+            //}
 
-            // Gửi yêu cầu đến API
-            const url = modalMode === "add"
-                ? "https://localhost:7207/api/department"
-                : "https://localhost:7207/api/department";
+            //// Gửi yêu cầu đến API
+            //const url = modalMode === "add"
+            //    ? "https://localhost:7207/api/department"
+            //    : "https://localhost:7207/api/department";
 
-            // Chọn phương thức HTTP phù hợp
-            const method = modalMode === "add" ? "POST" : "PUT";
+            //// Chọn phương thức HTTP phù hợp
+            //const method = modalMode === "add" ? "POST" : "PUT";
 
-            // Thực hiện yêu cầu fetch
-            const res = await fetch(url, {
-                method,
-                headers,
-                body: JSON.stringify(body)
-            });
+            //// Thực hiện yêu cầu fetch
+            //const res = await fetch(url, {
+            //    method,
+            //    headers,
+            //    body: JSON.stringify(body)
+            //});
 
             // Kiểm tra lỗi
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
+            //if (!res.ok) {
+            //    const errorData = await res.text();
+            //    throw new Error(errorData || "Something went wrong");
+            //}
+            const body = {
+                id: currentDept?.id,
+                departmentName: currentDept?.departmentName,
+            };
 
+            const method = modalMode === "add" ? "POST" : "PUT";
+            await apiFetch("/department", method, body);
             // Hiển thị thông báo thành công
             toast.success("Department saved successfully", {
                 position: "top-right",
@@ -170,9 +180,10 @@ export default function DepartmentPage() {
             });
 
             // Cập nhật lại danh sách phòng ban
-            const deptRes = await fetch("https://localhost:7207/api/department", { headers });
-            const deptData = await deptRes.json();
-            setDepartments(deptData);
+            //const deptRes = await fetch("https://localhost:7207/api/department", { headers });
+            //const deptData = await deptRes.json();
+            const updatedDepts = await apiFetch("/department");
+            setDepartments(updatedDepts);
 
             // Đóng modal
             (window as any).jQuery("#exampleModal").modal("hide");
@@ -195,25 +206,25 @@ export default function DepartmentPage() {
     async function handleDelete() {
         if (!deleteDeptId) return;
 
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
+        //const token = localStorage.getItem("jwt");
+        //if (!token) return;
 
-        const headers = {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        };
+        //const headers = {
+        //    "Authorization": `Bearer ${token}`,
+        //    "Content-Type": "application/json"
+        //};
 
         try {
-            const res = await fetch(`https://localhost:7207/api/department/${deleteDeptId}`, {
-                method: "DELETE",
-                headers
-            });
+            //const res = await fetch(`https://localhost:7207/api/department/${deleteDeptId}`, {
+            //    method: "DELETE",
+            //    headers
+            //});
 
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
+            //if (!res.ok) {
+            //    const errorData = await res.text();
+            //    throw new Error(errorData || "Something went wrong");
+            //}
+            await apiFetch(`/department/${deleteDeptId}`, "DELETE");
             toast.success("Department deleted successfully", {
                 position: "top-right",
                 autoClose: 3000
