@@ -24,7 +24,15 @@ export default function DepartmentPage() {
     const filteredDepartments = departments.filter(dept =>
         dept.departmentName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredDepartments.length / itemsPerPage);
 
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredDepartments.slice(indexOfFirstItem, indexOfLastItem);
     // Lấy vai trò hiện tại từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
 
@@ -62,31 +70,9 @@ export default function DepartmentPage() {
 
     // Tải dữ liệu loại nhân viên từ API khi component được mount
     useEffect(() => {
-        // Kiểm tra token JWT
-        //const token = localStorage.getItem("jwt");
-        //if (!token) {
-        //    window.location.href = "/auth/login";
-        //    return;
-        //}
-
-        //// Thiết lập header với token
-        //const headers = {
-        //    "Authorization": `Bearer ${token}`,
-        //    "Content-Type": "application/json"
-        //};
-
         // Hàm tải dữ liệu
         async function loadData() {
             try {
-                //// Tải cả phòng ban và nhân viên để đếm số nhân viên theo phòng ban
-                //const [deptRes, empRes] = await Promise.all([
-                //    fetch("https://localhost:7207/api/department", { headers }),
-                //    fetch("https://localhost:7207/api/employee", { headers })
-                //]);
-
-                //// Kiểm tra lỗi
-                //const depts = await deptRes.json();
-                //const employees = await empRes.json();
                 const [depts, employees] = await Promise.all([
                     apiFetch("/department"),
                     apiFetch("/employee"),
@@ -122,50 +108,7 @@ export default function DepartmentPage() {
 
     // Hàm xử lý lưu (thêm hoặc sửa) phòng ban
     async function handleSave() {
-        //const token = localStorage.getItem("jwt");
-        //if (!token) return;
-
-        //const headers = {
-        //    "Authorization": `Bearer ${token}`,
-        //    "Content-Type": "application/json"
-        //};
-
         try {
-            // Chuẩn bị dữ liệu gửi đi
-            //let body: any = {};
-
-            //// Phân biệt giữa thêm và sửa
-            //if (modalMode === "add") {
-            //    body = {
-            //        departmentName: currentDept?.departmentName
-            //    };
-            //} else {
-            //    body = {
-            //        id: currentDept?.id,
-            //        departmentName: currentDept?.departmentName
-            //    };
-            //}
-
-            //// Gửi yêu cầu đến API
-            //const url = modalMode === "add"
-            //    ? "https://localhost:7207/api/department"
-            //    : "https://localhost:7207/api/department";
-
-            //// Chọn phương thức HTTP phù hợp
-            //const method = modalMode === "add" ? "POST" : "PUT";
-
-            //// Thực hiện yêu cầu fetch
-            //const res = await fetch(url, {
-            //    method,
-            //    headers,
-            //    body: JSON.stringify(body)
-            //});
-
-            // Kiểm tra lỗi
-            //if (!res.ok) {
-            //    const errorData = await res.text();
-            //    throw new Error(errorData || "Something went wrong");
-            //}
             const body = {
                 id: currentDept?.id,
                 departmentName: currentDept?.departmentName,
@@ -179,9 +122,6 @@ export default function DepartmentPage() {
                 autoClose: 3000
             });
 
-            // Cập nhật lại danh sách phòng ban
-            //const deptRes = await fetch("https://localhost:7207/api/department", { headers });
-            //const deptData = await deptRes.json();
             const updatedDepts = await apiFetch("/department");
             setDepartments(updatedDepts);
 
@@ -206,24 +146,7 @@ export default function DepartmentPage() {
     async function handleDelete() {
         if (!deleteDeptId) return;
 
-        //const token = localStorage.getItem("jwt");
-        //if (!token) return;
-
-        //const headers = {
-        //    "Authorization": `Bearer ${token}`,
-        //    "Content-Type": "application/json"
-        //};
-
         try {
-            //const res = await fetch(`https://localhost:7207/api/department/${deleteDeptId}`, {
-            //    method: "DELETE",
-            //    headers
-            //});
-
-            //if (!res.ok) {
-            //    const errorData = await res.text();
-            //    throw new Error(errorData || "Something went wrong");
-            //}
             await apiFetch(`/department/${deleteDeptId}`, "DELETE");
             toast.success("Department deleted successfully", {
                 position: "top-right",
@@ -242,6 +165,7 @@ export default function DepartmentPage() {
             });
         }
     }
+
     return (
         <div className="section-body">
             <div className="container-fluid">
@@ -287,7 +211,7 @@ export default function DepartmentPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredDepartments.map((dept) => (
+                                            {currentItems.map((dept) => (
                                                 <tr key={dept.id}>
                                                     <td className="w40">
                                                         <label className="custom-control custom-checkbox">
@@ -310,6 +234,38 @@ export default function DepartmentPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    <nav aria-label="Page navigation">
+                                        <ul className="pagination mb-0 justify-content-end">
+
+                                            {/* Previous */}
+                                            <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                                <a className="page-link"
+                                                    onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                                >
+                                                    Previous
+                                                </a>
+                                            </li>
+
+                                            {/* Page Numbers */}
+                                            {Array.from({ length: totalPages }, (_, i) => (
+                                                <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                                    <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                                        {i + 1}
+                                                    </a>
+                                                </li>
+                                            ))}
+
+                                            {/* Next */}
+                                            <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                                <a className="page-link"
+                                                    onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                                >
+                                                    Next
+                                                </a>
+                                            </li>
+
+                                        </ul>
+                                    </nav>
                                 </div>
                             </div>
                         </div>

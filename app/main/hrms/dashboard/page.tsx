@@ -1,375 +1,552 @@
-import React from 'react';
+﻿"use client";
+
+import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { apiFetch } from "@/app/utils/apiClient";
+
+const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function DashboardPage() {
+    const [user, setUser] = useState<any>(null);
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
+    const [leaves, setLeaves] = useState<any[]>([]);
+    const [overtime, setOvertime] = useState<any[]>([]);
+    const [attendance, setAttendance] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [quote, setQuote] = useState("");
+    const [weather, setWeather] = useState<{ tempC: number; condition: string } | null>(null);
+
+    // === Decode JWT user info ===
+    useEffect(() => {
+        const token = localStorage.getItem("jwt");
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split(".")[1]));
+                const role =
+                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "Employee";
+                const empId =
+                    payload["employeeId"] ||
+                    payload["nameid"] ||
+                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+                const nameFromToken =
+                    payload["unique_name"] ||
+                    payload["name"] ||
+                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
+                    payload["given_name"] ||
+                    payload["family_name"] ||
+                    "User";
+                setUser({
+                    id: empId ? Number(empId) : null,
+                    role,
+                    fullName: nameFromToken,
+                });
+            } catch (err) {
+                console.error("Error decoding JWT", err);
+            }
+        }
+    }, []);
+
+    // === Random motivational quotes ===
+    const quotes = [
+        "Stay focused and make today amazing",
+        "Small progress each day adds up to big results",
+        "You are capable of great things — keep going",
+        "Do something today that your future self will thank you for",
+        "Success is not an accident; it’s hard work, patience, and passion",
+    ];
+
+    // === Weather map ===
+    const weatherMap: Record<number, string> = {
+        0: "Clear sky ☀️",
+        1: "Mainly clear 🌤",
+        2: "Partly cloudy ⛅",
+        3: "Overcast ☁️",
+        45: "Fog 🌫",
+        48: "Depositing rime fog 🌫",
+        51: "Light drizzle 🌦",
+        61: "Rain 🌧",
+        71: "Snowfall ❄️",
+        95: "Thunderstorm ⛈",
+    };
+
+    // === Fetch data + weather ===
+    useEffect(() => {
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        setQuote(randomQuote);
+
+        const fetchWeather = async () => {
+            try {
+                if (!navigator.geolocation) {
+                    console.warn("Geolocation not supported by this browser.");
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+
+                        const res = await fetch(
+                            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+                        );
+                        const data = await res.json();
+                        if (data.current_weather) {
+                            setWeather({
+                                tempC: data.current_weather.temperature,
+                                condition:
+                                    weatherMap[data.current_weather.weathercode] || "Cloudy ☁️",
+                            });
+                        }
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        fetch(
+                            `https://api.open-meteo.com/v1/forecast?latitude=21.0285&longitude=105.8542&current_weather=true`
+                        )
+                            .then((res) => res.json())
+                            .then((data) => {
+                                if (data.current_weather) {
+                                    setWeather({
+                                        tempC: data.current_weather.temperature,
+                                        condition:
+                                            weatherMap[data.current_weather.weathercode] ||
+                                            "Cloudy ☁️",
+                                    });
+                                }
+                            });
+                    }
+                );
+            } catch (err) {
+                console.error("Weather fetch error:", err);
+            }
+        };
+
+
+        Promise.all([
+            apiFetch("/employee"),
+            apiFetch("/department"),
+            apiFetch("/employeetype"),
+            apiFetch("/leaverequest"),
+            apiFetch("/overtimerequest"),
+            apiFetch("/attendance"),
+        ])
+            .then(([emp, dep, types, leave, ot, att]) => {
+                const employeeList = emp?.emp || emp || [];
+                setEmployees(employeeList);
+                setDepartments(dep?.dep || dep || []);
+                setEmployeeTypes(types?.type || types || []);
+                setLeaves(leave?.leave || leave || []);
+                setOvertime(ot?.ot || ot || []);
+                setAttendance(att?.att || att || []);
+
+                setUser((prev: any) => {
+                    if (!prev?.id) return prev;
+                    const me = employeeList.find(
+                        (e: any) => e.id === prev.id || e.employeeId === prev.id
+                    );
+                    return {
+                        ...prev,
+                        fullName: me?.fullName || "Employee",
+                        departmentId: me?.departmentId || null,
+                    };
+                });
+            })
+            .catch((err) => console.error("Load failed:", err))
+            .finally(() => {
+                setLoading(false);
+                fetchWeather();
+            });
+    }, []);
+
+    if (loading) return <div className="text-center p-5 text-muted">Loading dashboard...</div>;
+
+    const role = user?.role || "Employee";
+    const displayName = user?.fullName || "Employee";
+
+    // ====== ROLE FILTER ======
+    const filteredEmployees =
+        role === "Manager"
+            ? employees.filter((e) => e.departmentId === user?.departmentId)
+            : employees;
+    const filteredAttendance =
+        role === "Employee"
+            ? attendance.filter((a) => a.employeeId === user?.id)
+            : attendance;
+    const filteredLeaves =
+        role === "Employee"
+            ? leaves.filter((l) => l.employeeId === user?.id)
+            : leaves;
+
+    // ====== SUMMARY ======
+    const totalEmployees = filteredEmployees.length;
+    const totalDepartments = departments.length;
+
+    // ====== EMPLOYEE GENDER ======
+    const genderSummary = filteredEmployees.reduce<Record<string, number>>((acc, e) => {
+        const key = e?.gender || "Unknown";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+    const genderLabels = Object.keys(genderSummary);
+    const genderSeries = Object.values(genderSummary);
+
+    // ====== EMPLOYEE TYPE ======
+    const typeSummary = employeeTypes.map((t) => ({
+        type: t.typeName || "Unknown",
+        total: filteredEmployees.filter((e) => e.employeeTypeId === t.id).length,
+    }));
+    const typeLabels = typeSummary.map((t) => t.type);
+    const typeSeries = typeSummary.map((t) => t.total);
+
+    // ====== LEAVE BY DEPARTMENT ======
+    const approvedLeaves = filteredLeaves.filter((l) => l.status === 1);
+    const leaveDeptSummary = departments.map((d) => {
+        const count = approvedLeaves.filter((l) => {
+            const emp = employees.find(
+                (e) => e.id === l.employeeId || e.employeeId === l.employeeId
+            );
+            return emp && emp.departmentId === d.id;
+        }).length;
+        return { dept: d.departmentName, total: count };
+    });
+    const leaveDeptLabels = leaveDeptSummary.map((d) => d.dept);
+    const leaveDeptCounts = leaveDeptSummary.map((d) => d.total);
+
+    // ====== OVERTIME ======
+    const otSummary: Record<string, number> = {};
+    overtime
+        .filter((o) => o.status === 1)
+        .forEach((o) => {
+            const emp =
+                filteredEmployees.find(
+                    (e) => e.id === o.employeeId || e.employeeId === o.employeeId
+                )?.fullName || "Unknown";
+            const start = new Date(o.startTime);
+            const end = new Date(o.endTime);
+            const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            if (diffHours > 0) otSummary[emp] = (otSummary[emp] || 0) + diffHours;
+        });
+    const otNames = Object.keys(otSummary);
+    const otHours = Object.values(otSummary);
+
+    // ====== ATTENDANCE ======
+    let onTime = 0,
+        late = 0,
+        absent = 0;
+    const checkedEmployees = new Set<number>();
+    filteredAttendance.forEach((a) => {
+        if (!a.checkinTime) return;
+        checkedEmployees.add(a.employeeId);
+        const checkin = new Date(a.checkinTime);
+        const hour = checkin.getHours() + checkin.getMinutes() / 60;
+        if (hour <= 8.5) onTime++;
+        else if (hour <= 12) late++;
+    });
+    absent = Math.max(0, filteredEmployees.length - checkedEmployees.size);
+    const total = onTime + late + absent || 1;
+
+    // ====== DEPT EMPLOYEE COUNT ======
+    const deptSummary = departments.map((d) => ({
+        dept: d.departmentName,
+        total: filteredEmployees.filter((e) => e.departmentId === d.id).length,
+    }));
+    const deptLabels = deptSummary.map((d) => d.dept);
+    const deptCounts = deptSummary.map((d) => d.total);
+
+    // ====== CHARTS ======
+    const genderChart = {
+        series: genderSeries.length ? genderSeries : [1],
+        options: {
+            labels: genderLabels.length ? genderLabels : ["No Data"],
+            chart: { type: "pie" },
+            legend: { position: "bottom" },
+        },
+    };
+    const typeChart = {
+        series: typeSeries.length ? typeSeries : [1],
+        options: {
+            labels: typeLabels.length ? typeLabels : ["No Data"],
+            chart: { type: "pie" },
+            legend: { position: "bottom" },
+        },
+    };
+    const attendanceChart = {
+        series: [(onTime / total) * 100, (late / total) * 100, (absent / total) * 100],
+        options: {
+            labels: ["On Time", "Late", "Absent"],
+            chart: { type: "donut" },
+            legend: { position: "bottom" },
+        },
+    };
+    const deptChart = {
+        series: [{ name: "Employees", data: deptCounts }],
+        options: {
+            chart: { type: "bar" },
+            xaxis: { categories: deptLabels },
+        },
+    };
+    const leaveDeptChart = {
+        series: [{ name: "Leave Requests", data: leaveDeptCounts }],
+        options: {
+            chart: { type: "bar" },
+            xaxis: { categories: leaveDeptLabels },
+        },
+    };
+    const overtimeChart = {
+        series: [{ name: "Overtime Hours", data: otHours }],
+        options: {
+            chart: { type: "bar" },
+            xaxis: { categories: otNames },
+        },
+    };
+
+    // ====== Extra UI elements ======
+    const tips = [
+        " Stay positive and proactive every morning.",
+        " Help a teammate today — it strengthens the culture.",
+        " Learn one new thing every week.",
+        " Plan your top 3 priorities before lunch.",
+    ];
+
+    // ========================================================================
+    // === NEW CALENDAR WITH MONTH NAVIGATION ===
+    // ========================================================================
+    const Calendar = () => {
+        const [currentDate, setCurrentDate] = useState(new Date());
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        const goPrev = () => setCurrentDate(new Date(year, month - 1, 1));
+        const goNext = () => setCurrentDate(new Date(year, month + 1, 1));
+
+        const weeks: JSX.Element[][] = [];
+        let day = 1;
+
+        for (let i = 0; i < 6; i++) {
+            const row: JSX.Element[] = [];
+            for (let j = 0; j < 7; j++) {
+                if ((i === 0 && j < firstDay) || day > daysInMonth)
+                    row.push(<td key={j}></td>);
+                else {
+                    const isToday =
+                        day === new Date().getDate() &&
+                        month === new Date().getMonth() &&
+                        year === new Date().getFullYear();
+
+                    row.push(
+                        <td
+                            key={j}
+                            className={
+                                isToday
+                                    ? "bg-primary text-white fw-bold rounded-circle"
+                                    : ""
+                            }
+                        >
+                            {day}
+                        </td>
+                    );
+                    day++;
+                }
+            }
+            weeks.push(row);
+        }
+
+        return (
+            <div>
+                {/* Header Month Navigation */}
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                    <button
+                        onClick={goPrev}
+                        className="btn btn-sm btn-outline-primary"
+                    >
+                        ◀
+                    </button>
+
+                    <h5 className="fw-bold text-primary mb-0">
+                        {currentDate.toLocaleString("default", {
+                            month: "long",
+                            year: "numeric",
+                        })}
+                    </h5>
+
+                    <button
+                        onClick={goNext}
+                        className="btn btn-sm btn-outline-primary"
+                    >
+                        ▶
+                    </button>
+                </div>
+
+                <table
+                    className="table table-bordered text-center mb-0"
+                    style={{ fontSize: "0.85rem" }}
+                >
+                    <thead>
+                        <tr>
+                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                                (d, i) => (
+                                    <th key={i}>{d}</th>
+                                )
+                            )}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {weeks.map((r, i) => (
+                            <tr key={i}>{r}</tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
+    // ========================================================================
+    // ============================ RETURN UI ================================
+    // ========================================================================
+
     return (
         <div className="section-body">
             <div className="container-fluid">
-                <div className="row clearfix">
-                    <div className="col-lg-12">
-                        <div className="mb-4">
-                            <h4 className="font600 mb-1">Welcome Jason Porter!</h4>
-                            <small>Measure How Fast {"You're"} Growing Monthly Recurring Revenue. <a href="#">Learn More</a></small>
-                        </div>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h4 className="font600 mb-1 text-primary">Welcome back, {displayName}!</h4>
+                        <small className="text-muted">{quote}</small>
                     </div>
+                    {weather && (
+                        <div className="text-end">
+                            <div className="card p-2 shadow-sm border-0">
+                                <div className="fw-semibold">{Math.round(weather.tempC)}°C</div>
+                                <div className="small text-muted">{weather.condition}</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <div className="row clearfix">
-                    <div className="col-md-4">
-                        <div className="card ribbon">
-                            <a href="/main/hrms/employee" className="card-body my_sort_cut">
-                                <i className="fa-solid fa-users"></i>
-                                <h6 className="pt-2 mb-0 font500">Employees</h6>
-                            </a>
-                        </div>
-                    </div>
-                    <div className="col-md-4">
-                        <div className="card">
-                            <a href="/main/hrms/employee-type" className="card-body my_sort_cut">
-                                <i className="fa-solid fa-user-tie"></i>
-                                <h6 className="pt-2 mb-0 font500">Types</h6>
-                            </a>
-                        </div>
-                    </div>
-                    <div className="col-md-4">
-                        <div className="card">
-                            <a href="/main/hrms/department" className="card-body my_sort_cut">
-                                <i className="fa-solid fa-tags"></i>
-                                <h6 className="pt-2 mb-0 font500">Departments</h6>
-                            </a>
-                        </div>
-                    </div>
+
+                {/* === Summary cards === */}
+                <div className="row clearfix mt-4">
+                    {role === "Employee" ? (
+                        <>
+                            <div className="col-md-6 text-center">
+                                <div className="card p-3"><h6>Approved Leaves</h6><h3>{approvedLeaves.length}</h3></div>
+                            </div>
+                            <div className="col-md-6 text-center">
+                                <div className="card p-3"><h6>Approved Overtime</h6><h3>{overtime.filter(o => o.status === 1).length}</h3></div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="col-md-3 text-center"><div className="card p-3"><h6>Employees</h6><h3>{totalEmployees}</h3></div></div>
+                            <div className="col-md-3 text-center"><div className="card p-3"><h6>Departments</h6><h3>{totalDepartments}</h3></div></div>
+                            <div className="col-md-3 text-center"><div className="card p-3"><h6>Approved Leaves</h6><h3>{approvedLeaves.length}</h3></div></div>
+                            <div className="col-md-3 text-center"><div className="card p-3"><h6>Approved Overtime</h6><h3>{overtime.filter(o => o.status === 1).length}</h3></div></div>
+                        </>
+                    )}
                 </div>
-                <div className="row clearfix row-deck">
-                    <div className="col-xl-9 col-12">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Salary Statistics</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-collapse" data-toggle="card-collapse"><i className="fa-solid fa-chevron-up"></i></a>
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                    <div className="item-action dropdown ml-2">
-                                        <a href="javascript:void(0)" data-toggle="dropdown"><i className="fa-solid fa-ellipsis-vertical"></i></a>
-                                        <div className="dropdown-menu dropdown-menu-right">
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-eye"></i> View Details </a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-share-alt"></i> Share </a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-cloud-download"></i> Download</a>
-                                            <div className="dropdown-divider"></div>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-copy"></i> Copy to</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-folder"></i> Move to</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-edit"></i> Rename</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-trash"></i> Delete</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="card-body pb-0">
-                                <div id="chart-bar-theme1" style={{ height: "350px" }} ></div>
-                            </div>
-                            <div className="card-footer">
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <a href="javascript:void(0)" className="btn btn-info btn-sm w200 mr-3">Generate Report</a>
-                                    <small>Measure How Fast You re Growing Monthly Recurring Revenue. <a href="#">Learn More</a></small>
-                                </div>
-                            </div>
-                        </div>
+
+                {/* === Charts === */}
+                {role === "Employee" ? (
+                    <div className="row clearfix row-deck mt-4">
+                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Your Attendance</h3></div><div className="card-body"><ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} /></div></div></div>
+                        <div className="col-xl-8"><div className="card"><div className="card-header"><h3>Your Overtime</h3></div><div className="card-body"><ApexChart options={overtimeChart.options} series={overtimeChart.series} type="bar" height={300} /></div></div></div>
                     </div>
-                    <div className="col-xl-3 col-lg-4 col-sm-6">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">My Balance</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                </div>
-                            </div>
-                            <div className="card-body">
-                                <span>Balance</span>
-                                <h4 className="font600">$<span className="counter">20,508</span></h4>
-                                <div id="theme-apexspark1" className="mb-4"></div>
-                                <div className="form-group">
-                                    <label className="d-block"><small className="text-muted">Bank of America</small><span className="float-right font700">$<span className="counter">15,025</span></span></label>
-                                    <div className="progress" style={{ height: "5px" }} >
-                                        <div className="progress-bar bg-azure" role="progressbar" aria-valuenow={77} aria-valuemin={0} aria-valuemax={100} style={{ width: "77%" }} ></div>
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="d-block"><small className="text-muted">RBC Bank</small><span className="float-right font700">$<span className="counter">1,843</span></span></label>
-                                    <div className="progress" style={{ height: "5px" }}>
-                                        <div className="progress-bar bg-green" role="progressbar" aria-valuenow={50} aria-valuemin={0} aria-valuemax={100} style={{ width: "50%" }} ></div>
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label className="d-block"><small className="text-muted">Frost Bank</small><span className="float-right font700">$<span className="counter">3,641</span></span></label>
-                                    <div className="progress" style={{ height: "5px" }}>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-blue" role="progressbar" aria-valuenow={23} aria-valuemin={0} aria-valuemax={100} style={{ width: "23%" }} ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="card-footer">
-                                    <a href="javascript:void(0)" className="btn btn-block btn-info btn-sm">View More</a>
-                                </div>
-                            </div>
-                        </div>
+                ) : (
+                    <div className="row clearfix row-deck mt-4">
+                        <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Employees by Department</h3></div><div className="card-body"><ApexChart options={deptChart.options} series={deptChart.series} type="bar" height={300} /></div></div></div>
+                        <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Overtime by Employee</h3></div><div className="card-body"><ApexChart options={overtimeChart.options} series={overtimeChart.series} type="bar" height={300} /></div></div></div>
+                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Attendance Overview</h3></div><div className="card-body"><ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} /></div></div></div>
+                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Gender</h3></div><div className="card-body"><ApexChart options={genderChart.options} series={genderChart.series} type="pie" height={220} /></div></div></div>
+                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Type</h3></div><div className="card-body"><ApexChart options={typeChart.options} series={typeChart.series} type="pie" height={220} /></div></div></div>
+                        <div className="col-xl-12"><div className="card"><div className="card-header"><h3>Leave by Department</h3></div><div className="card-body"><ApexChart options={leaveDeptChart.options} series={leaveDeptChart.series} type="bar" height={300} /></div></div></div>
                     </div>
-                    <div className="col-xl-3 col-lg-4 col-sm-6">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Revenue</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                </div>
+                )}
+
+                {/* === Extra Panels === */}
+                <div className="row g-4 mt-5 row-cols-1 row-cols-lg-3">
+                    {/* Calendar */}
+                    <div className="col">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-header bg-white">
+                                <h6 className="fw-semibold mb-0 text-dark">Company Calendar</h6>
                             </div>
                             <div className="card-body text-center">
-                                <div className="mt-3">
-                                    <input type="text" className="knob" value="78" data-width="148" data-height="148" data-thickness="0.2" data-bgcolor="#e0e0e0" data-fgcolor="#67b173" readOnly />
-                                </div>
-                                <h3 className="mb-0 mt-3 font600"><span className="counter">1,24,301</span> <span className="text-green font-15">+3.7%</span></h3>
-                                <small>Lorem Ipsum is simply dummy text <br /> <a href="#">Read more</a> </small>
-                                <div className="mt-4">
-                                    <span className="theme1-chart_3">4,5,8,4,6,9,4,5,6,3</span>
-                                </div>
+                                <Calendar />
                             </div>
                         </div>
                     </div>
-                    <div className="col-xl-3 col-lg-4 col-sm-6">
-                        <div className="card performance-overview">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Performance</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                </div>
+
+                    {/* HR Insights & Updates */}
+                    <div className="col">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-header bg-white border-bottom">
+                                <h6 className="fw-semibold text-dark mb-0">HR Insights & Updates</h6>
                             </div>
-                            <div className="card-body">
-                                <span>Measure How Fast You re Growing Monthly Recurring Revenue. <a href="#">Learn More</a></span>
-                                <ul className="list-group mt-3 mb-0">
-                                    <li className="list-group-item">
-                                        <div className="clearfix mb-1">
-                                            <div className="float-left font700">87%</div>
-                                            <div className="float-right"><small className="text-muted">Design Team</small></div>
-                                        </div>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-azure" role="progressbar" aria-valuenow={87} aria-valuemin={0} aria-valuemax={100} style={{ width: "87%" }} ></div>
-                                        </div>
+                            <div className="card-body d-flex flex-column justify-content-between">
+                                <ul className="list-group list-group-flush mb-3">
+                                    <li className="list-group-item border-0">
+                                        <strong>Top Department:</strong>{" "}
+                                        {deptLabels.length
+                                            ? deptLabels[deptCounts.indexOf(Math.max(...deptCounts))]
+                                            : "N/A"}
                                     </li>
-                                    <li className="list-group-item">
-                                        <div className="clearfix mb-1">
-                                            <div className="float-left font700">76%</div>
-                                            <div className="float-right"><small className="text-muted">Developer Team</small></div>
-                                        </div>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-green" role="progressbar" aria-valuenow={76} aria-valuemin={0} aria-valuemax={100} style={{ width: "76%" }} ></div>
-                                        </div>
+                                    <li className="list-group-item border-0">
+                                        <strong>Lowest Leave Requests:</strong>{" "}
+                                        {leaveDeptLabels.length
+                                            ? leaveDeptLabels[
+                                            leaveDeptCounts.indexOf(Math.min(...leaveDeptCounts))
+                                            ]
+                                            : "N/A"}
                                     </li>
-                                    <li className="list-group-item">
-                                        <div className="clearfix mb-1">
-                                            <div className="float-left font700">36%</div>
-                                            <div className="float-right"><small className="text-muted">Marketing</small></div>
-                                        </div>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-orange" role="progressbar" aria-valuenow={36} aria-valuemin={0} aria-valuemax={100} style={{ width: "36%" }} ></div>
-                                        </div>
+                                    <li className="list-group-item border-0">
+                                        <strong>Most Active Employees:</strong>{" "}
+                                        {otNames.slice(0, 2).join(", ") || "No Data"}
                                     </li>
-                                    <li className="list-group-item">
-                                        <div className="clearfix mb-1">
-                                            <div className="float-left font700">81%</div>
-                                            <div className="float-right"><small className="text-muted">Management</small></div>
-                                        </div>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-indigo" role="progressbar" aria-valuenow={81} aria-valuemin={0} aria-valuemax={100} style={{ width: "81%" }} ></div>
-                                        </div>
-                                    </li>
-                                    <li className="list-group-item">
-                                        <div className="clearfix mb-1">
-                                            <div className="float-left font700">45%</div>
-                                            <div className="float-right"><small className="text-muted">Other</small></div>
-                                        </div>
-                                        <div className="progress" style={{ height: "5px" }}>
-                                            <div className="progress-bar bg-pink" role="progressbar" aria-valuenow={45} aria-valuemin={0} aria-valuemax={100} style={{ width: "45%" }} ></div>
-                                        </div>
+                                    <li className="list-group-item border-0">
+                                        <strong>Average Attendance Rate:</strong>{" "}
+                                        {Math.round((onTime / total) * 100)}%
                                     </li>
                                 </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-xl-3 col-sm-6">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Growth</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                </div>
-                            </div>
-                            <div className="card-body text-center">
-                                <div id="GROWTH" style={{ height: "240px" }}></div>
-                            </div>
-                            <div className="card-footer text-center">
-                                <div className="row clearfix">
-                                    <div className="col-6">
-                                        <h5 className="pt-1 mb-0 font600">$3,095</h5>
-                                        <small className="text-muted">Last Year</small>
-                                    </div>
-                                    <div className="col-6">
-                                        <h5 className="pt-1 mb-0 font600">$2,763</h5>
-                                        <small className="text-muted">This Year</small>
-                                    </div>
+                                <div>
+                                    <hr className="my-2" />
+                                    <p className="small text-muted mb-0">
+                                        Upcoming: Annual HR review on{" "}
+                                        <span className="text-dark fw-semibold">Dec 10</span>.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div className="col-xl-3 col-lg-6 col-12">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Employee Structure</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                </div>
+
+                    {/* Work Tips */}
+                    <div className="col">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-header bg-white">
+                                <h6 className="fw-semibold mb-0 text-dark">Work Tips</h6>
                             </div>
-                            <div className="card-body text-center">
-                                <div id="chart-bar-stacked" style={{ height: "290px" }}></div>
-                                <div className="row clearfix pt-1">
-                                    <div className="col-6">
-                                        <h5 className="pt-1 mb-0 font600">50</h5>
-                                        <small className="text-muted">Male</small>
-                                    </div>
-                                    <div className="col-6">
-                                        <h5 className="pt-1 mb-0 font600">17</h5>
-                                        <small className="text-muted">Female</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-12 col-sm-12">
-                        <div className="card">
-                            <div className="card-header border-bottom">
-                                <h3 className="card-title">Project Summary</h3>
-                                <div className="card-options">
-                                    <a href="#" className="card-options-collapse" data-toggle="card-collapse"><i className="fa-solid fa-chevron-up"></i></a>
-                                    <a href="#" className="card-options-fullscreen" data-toggle="card-fullscreen"><i className="fa-solid fa-maximize"></i></a>
-                                    <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fa-solid fa-x"></i></a>
-                                    <div className="item-action dropdown ml-2">
-                                        <a href="javascript:void(0)" data-toggle="dropdown"><i className="fa-solid fa-ellipsis-vertical"></i></a>
-                                        <div className="dropdown-menu dropdown-menu-right">
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-eye"></i> View Details </a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-share-alt"></i> Share </a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-cloud-download"></i> Download</a>
-                                            <div className="dropdown-divider"></div>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-copy"></i> Copy to</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-folder"></i> Move to</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-edit"></i> Rename</a>
-                                            <a href="javascript:void(0)" className="dropdown-item"><i className="dropdown-icon fa-solid fa-trash"></i> Delete</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="card-body">
-                                <div className="table-responsive">
-                                    <table className="table table-hover table-striped text-nowrap table-vcenter mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Client Name</th>
-                                                <th>Team</th>
-                                                <th>Project</th>
-                                                <th>Project Cost</th>
-                                                <th>Payment</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>#AD1245</td>
-                                                <td>Sean Black</td>
-                                                <td>
-                                                    <ul className="list-unstyled team-info sm margin-0 w150">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar3.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar4.jpg" alt="Avatar" /></li>
-                                                        <li className="ml-2"><span>2+</span></li>
-                                                    </ul>
-                                                </td>
-                                                <td>Angular Admin</td>
-                                                <td>$14,500</td>
-                                                <td>Done</td>
-                                                <td><span className="tag tag-success">Delivered</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td>#DF1937</td>
-                                                <td>Sean Black</td>
-                                                <td>
-                                                    <ul className="list-unstyled team-info sm margin-0 w150">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar3.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar4.jpg" alt="Avatar" /></li>
-                                                        <li className="ml-2"><span>2+</span></li>
-                                                    </ul>
-                                                </td>
-                                                <td>Angular Admin</td>
-                                                <td>$14,500</td>
-                                                <td>Pending</td>
-                                                <td><span className="tag tag-success">Delivered</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td>#YU8585</td>
-                                                <td>Merri Diamond</td>
-                                                <td>
-                                                    <ul className="list-unstyled team-info sm margin-0 w150">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                    </ul>
-                                                </td>
-                                                <td>One page html Admin</td>
-                                                <td>$500</td>
-                                                <td>Done</td>
-                                                <td><span className="tag tag-orange">Submit</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td>#AD1245</td>
-                                                <td>Sean Black</td>
-                                                <td>
-                                                    <ul className="list-unstyled team-info sm margin-0 w150">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar3.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar4.jpg" alt="Avatar" /></li>
-                                                    </ul>
-                                                </td>
-                                                <td>Wordpress One page</td>
-                                                <td>$1,500</td>
-                                                <td>Done</td>
-                                                <td><span className="tag tag-success">Delivered</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td>#GH8596</td>
-                                                <td>Allen Collins</td>
-                                                <td>
-                                                    <ul className="list-unstyled team-info sm margin-0 w150">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar3.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar4.jpg" alt="Avatar" /></li>
-                                                        <li className="ml-2"><span>2+</span></li>
-                                                    </ul>
-                                                </td>
-                                                <td>VueJs Application</td>
-                                                <td>$9,500</td>
-                                                <td>Done</td>
-                                                <td><span className="tag tag-success">Delivered</span></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div className="card-body d-flex flex-column justify-content-between">
+                                <ul className="list-group list-group-flush flex-grow-1 mb-3">
+                                    {tips.map((tip, i) => (
+                                        <li
+                                            key={i}
+                                            className="list-group-item border-0 text-secondary small"
+                                        >
+                                            {tip}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="small text-muted mb-0 text-center">
+                                    Refresh your mindset every day for better results.
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     );

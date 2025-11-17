@@ -27,7 +27,15 @@ export default function EmployeeTypePage() {
     const filteredEmployeeTypes = employeeTypes.filter(type =>
         type.typeName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredEmployeeTypes.length / itemsPerPage);
 
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredEmployeeTypes.slice(indexOfFirstItem, indexOfLastItem);
     // Lấy vai trò hiện tại từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
 
@@ -160,6 +168,7 @@ export default function EmployeeTypePage() {
             });
         }
     }
+
     return (
         <div className="section-body">
             <div className="container-fluid">
@@ -181,7 +190,7 @@ export default function EmployeeTypePage() {
                                 <h3 className="card-title">Employee Type List</h3>
                                 <div className="card-options">
                                     <form>
-                                        {/* Tìm kiếm loại nhân viên theo tên */} 
+                                        {/* Tìm kiếm loại nhân viên theo tên */}
                                         <div className="input-group">
                                             <input type="text" className="form-control form-control-sm" placeholder="Enter name to search..." name="s"
                                                 value={searchTerm}
@@ -207,8 +216,8 @@ export default function EmployeeTypePage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {/* Hiển thị danh sách loại nhân viên đã lọc */} 
-                                            {filteredEmployeeTypes.map((type) => (
+                                            {/* Hiển thị danh sách loại nhân viên đã lọc */}
+                                            {currentItems.map((type) => (
                                                 <tr key={type.id}>
                                                     <td className="w40">
                                                         <label className="custom-control custom-checkbox">
@@ -233,6 +242,38 @@ export default function EmployeeTypePage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    <nav aria-label="Page navigation">
+                                        <ul className="pagination mb-0 justify-content-end">
+
+                                            {/* Previous */}
+                                            <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                                <a className="page-link"
+                                                    onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                                >
+                                                    Previous
+                                                </a>
+                                            </li>
+
+                                            {/* Page Numbers */}
+                                            {Array.from({ length: totalPages }, (_, i) => (
+                                                <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                                    <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                                        {i + 1}
+                                                    </a>
+                                                </li>
+                                            ))}
+
+                                            {/* Next */}
+                                            <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                                <a className="page-link"
+                                                    onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                                >
+                                                    Next
+                                                </a>
+                                            </li>
+
+                                        </ul>
+                                    </nav>
                                 </div>
                             </div>
                         </div>
@@ -240,7 +281,7 @@ export default function EmployeeTypePage() {
                 </div>
             </div>
 
-            {/* Modal xác nhận xóa loại nhân viên */} 
+            {/* Modal xác nhận xóa loại nhân viên */}
             <div
                 className="modal fade"
                 id="confirmDeleteModal"
@@ -268,12 +309,12 @@ export default function EmployeeTypePage() {
                 </div>
             </div>
 
-            {/* Modal thêm/sửa loại nhân viên */ }
+            {/* Modal thêm/sửa loại nhân viên */}
             <div className="modal fade" id="exampleModal" tabIndex={-1} role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div className="modal-dialog" role="document">
                     <div className="modal-content">
                         <div className="modal-header">
-                            {/* Tiêu đề modal thay đổi tùy theo chế độ (thêm hoặc sửa) */} 
+                            {/* Tiêu đề modal thay đổi tùy theo chế độ (thêm hoặc sửa) */}
                             <h5 className="modal-title" id="exampleModalLabel">{modalMode === "add" ? "Add Employee Type" : "Edit Employee Type"}</h5>
                             <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                         </div>

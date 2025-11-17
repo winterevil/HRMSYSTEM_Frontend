@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { apiFetch } from "@/app/utils/apiClient";
 
 // Định nghĩa kiểu dữ liệu cho Attendance
 interface AttendanceDto {
@@ -19,20 +20,44 @@ export default function AttendancePage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [isCheckedIn, setIsCheckedIn] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const filteredRequests = attendances.filter((request) =>
-        request.employeeName?.toLowerCase().includes(searchTerm.toLowerCase() || "")
+    const filteredRequests = (attendances || []).filter((request) =>
+        (request.employeeName || "")
+            .toLowerCase()
+            .includes((searchTerm || "").toLowerCase())
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
 
     // Giải mã vai trò từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
+    const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (token) {
             try {
                 const payload = JSON.parse(atob(token.split(".")[1]));
+
                 const role =
                     payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
+                const email =
+                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] ||
+                    payload["email"] ||
+                    "";
+                const empId =
+                    payload["employeeId"] || payload["nameid"] || payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
                 setCurrentRole(role);
+                setCurrentUserEmail(email);
+                if (empId) setCurrentUserId(Number(empId)); // ✅ lưu ID
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
@@ -45,7 +70,7 @@ export default function AttendancePage() {
     const currentYear = now.getFullYear();
 
     // 🔹 Hàm tính thống kê cho 1 tháng cụ thể
-    function calcStats(data: AttendanceDto[], year: number, month: number) {
+    function calcStats(data: AttendanceDto[] = [], year: number, month: number) {
         const filtered = data.filter(a => {
             if (!a.checkinDate) return false;
             const d = new Date(a.checkinDate);
@@ -116,7 +141,7 @@ export default function AttendancePage() {
 
     // 🔹 Hàm so sánh %
     function comparePercent(current: number, previous: number) {
-        if (previous === 0) return current > 0 ? 100 : 0;
+        if (!isFinite(previous) || previous === 0) return current > 0 ? 100 : 0;
         return ((current - previous) / previous) * 100;
     }
 
@@ -128,66 +153,100 @@ export default function AttendancePage() {
     // === Fetch Attendance ===
     useEffect(() => {
         fetchAttendances();
+
     }, []);
+    useEffect(() => {
+        if (currentUserId && attendances.length > 0) {
+            updateCheckinStatus();
+        }
+    }, [currentUserId, attendances]);
+
+    // Chặn Admin không cho truy cập OT
+    if (currentRole === "Admin") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
+
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    Administrators are not allowed to checkin/ checkout.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Only Employees, HR and Managers are permitted to access attendance records.
+                </p>
+            </div>
+        );
+    }
+
 
     async function fetchAttendances() {
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/auth/login";
-            return;
-        }
+        setLoading(true);
         try {
-            const res = await fetch("https://localhost:7207/api/attendance", {
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            setAttendances(data);
-
-            const today = new Date().toISOString().split("T")[0];
-            const todayRecord = data.find(
-                (a: any) =>
-                    a.checkinDate.split("T")[0] === today && a.checkoutTime === null
-            );
-            setIsCheckedIn(!!todayRecord);
-        } catch (err: any) {
-            toast.error(err.message || "Error loading attendance", {
-                position: "top-right",
-                autoClose: 3000,
-            });
+            const data: AttendanceDto[] = await apiFetch("/attendance");
+            setAttendances(Array.isArray(data) ? data : []); 
+        } catch (err) {
+            console.error("Error fetching attendances:", err);
+            toast.error("Error loading attendance data");
+            setAttendances([]); 
         } finally {
             setLoading(false);
         }
     }
 
+    function updateCheckinStatus() {
+        if (!currentUserId) return; 
+        const today = new Date().toISOString().split("T")[0];
+
+        const myAttendance = attendances.filter(
+            (a) => a.employeeId === currentUserId
+        );
+
+        const todayRecord = myAttendance.find(
+            (a) =>
+                a.checkinDate?.split("T")[0] === today &&
+                (a.checkoutTime === null || a.checkoutTime === undefined)
+        );
+
+        setIsCheckedIn(!!todayRecord);
+    }
+
     // === Checkin / Checkout ===
     async function handleCheck() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
         setLoading(true);
         try {
             const endpoint = isCheckedIn
-                ? "https://localhost:7207/api/attendance/checkout"
-                : "https://localhost:7207/api/attendance/checkin";
+                ? "/attendance/checkout"
+                : "/attendance/checkin";
 
-            const res = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            const res = await apiFetch(endpoint, "POST");
 
-            const msg = await res.text();
-            if (!res.ok) throw new Error(msg);
+            const message =
+                typeof res === "string"
+                    ? res
+                    : res?.message || (isCheckedIn ? "Checked out!" : "Checked in!");
 
-            toast.success(msg, {
-                position: "top-right",
-                autoClose: 3000,
-            });
+            if (message.toLowerCase().includes("success")) {
+                toast.success(message, { position: "top-right", autoClose: 3000 });
+            } else {
+                throw new Error(message || "Operation failed");
+            }
+
             await fetchAttendances();
         } catch (err: any) {
             toast.error(err.message || "Error checking in/out", {
@@ -219,61 +278,63 @@ export default function AttendancePage() {
                 </div>
                 <div className="tab-content mt-3">
                     <div className="tab-pane fade show active" id="Payroll-Salary" role="tabpanel">
-                        <div className="row clearfix">
-                            <div className="col-md-4">
-                                <div className="card">
-                                    <div className="card-body">
-                                        <h6>Total Working Hours</h6>
-                                        <h3 className="pt-3">
-                                            <span className="counter">{currentStats.total.toFixed(1)}</span>
-                                        </h3>
-                                        <span>
-                                            <span className={totalChange >= 0 ? "text-success" : "text-danger"}>
-                                                <i className={`fa ${totalChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
-                                                {Math.abs(totalChange).toFixed(2)}%
-                                            </span>{" "}
-                                            Since last month
-                                        </span>
+                        {currentRole !== "Admin" && (
+                            <div className="row clearfix">
+                                <div className="col-md-4">
+                                    <div className="card">
+                                        <div className="card-body">
+                                            <h6>Total Working Hours</h6>
+                                            <h3 className="pt-3">
+                                                <span className="counter">{currentStats.total.toFixed(1)}</span>
+                                            </h3>
+                                            <span>
+                                                <span className={totalChange >= 0 ? "text-success" : "text-danger"}>
+                                                    <i className={`fa ${totalChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
+                                                    {Math.abs(totalChange).toFixed(2)}%
+                                                </span>{" "}
+                                                Since last month
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="col-md-4">
-                                <div className="card">
-                                    <div className="card-body">
-                                        <h6>Attendance Rate</h6>
-                                        <h3 className="pt-3">
-                                            <span className="counter">{currentStats.attendanceRate.toFixed(1)}%</span>
-                                        </h3>
-                                        <span>
-                                            <span className={rateChange >= 0 ? "text-success" : "text-danger"}>
-                                                <i className={`fa ${rateChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
-                                                {Math.abs(rateChange).toFixed(2)}%
-                                            </span>{" "}
-                                            Since last month
-                                        </span>
+                                <div className="col-md-4">
+                                    <div className="card">
+                                        <div className="card-body">
+                                            <h6>Attendance Rate</h6>
+                                            <h3 className="pt-3">
+                                                <span className="counter">{currentStats.attendanceRate.toFixed(1)}%</span>
+                                            </h3>
+                                            <span>
+                                                <span className={rateChange >= 0 ? "text-success" : "text-danger"}>
+                                                    <i className={`fa ${rateChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
+                                                    {Math.abs(rateChange).toFixed(2)}%
+                                                </span>{" "}
+                                                Since last month
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="col-md-4">
-                                <div className="card">
-                                    <div className="card-body">
-                                        <h6>Average Hours / Day</h6>
-                                        <h3 className="pt-3">
-                                            <span className="counter">{currentStats.avgHours.toFixed(1)}</span>
-                                        </h3>
-                                        <span>
-                                            <span className={avgChange >= 0 ? "text-success" : "text-danger"}>
-                                                <i className={`fa ${avgChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
-                                                {Math.abs(avgChange).toFixed(2)}%
-                                            </span>{" "}
-                                            Since last month
-                                        </span>
+                                <div className="col-md-4">
+                                    <div className="card">
+                                        <div className="card-body">
+                                            <h6>Average Hours / Day</h6>
+                                            <h3 className="pt-3">
+                                                <span className="counter">{currentStats.avgHours.toFixed(1)}</span>
+                                            </h3>
+                                            <span>
+                                                <span className={avgChange >= 0 ? "text-success" : "text-danger"}>
+                                                    <i className={`fa ${avgChange >= 0 ? "fa-long-arrow-up" : "fa-long-arrow-down"} mr-1`}></i>
+                                                    {Math.abs(avgChange).toFixed(2)}%
+                                                </span>{" "}
+                                                Since last month
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                         <div className="card">
                             <div className="card-header border-bottom">
                                 <h3 className="card-title">Attendance</h3>
@@ -300,7 +361,7 @@ export default function AttendancePage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredRequests.map((attendance) => (
+                                            {currentItems.map((attendance) => (
                                                 <tr key={attendance.id}>
                                                     <td>
                                                         <span>{attendance.id}</span>
@@ -332,11 +393,34 @@ export default function AttendancePage() {
                                 </div>
                                 <nav aria-label="Page navigation">
                                     <ul className="pagination mb-0 justify-content-end">
-                                        <li className="page-item"><a className="page-link" href="#">Previous</a></li>
-                                        <li className="page-item active"><a className="page-link" href="#">1</a></li>
-                                        <li className="page-item"><a className="page-link" href="#">2</a></li>
-                                        <li className="page-item"><a className="page-link" href="#">3</a></li>
-                                        <li className="page-item"><a className="page-link" href="#">Next</a></li>
+
+                                        {/* Previous */}
+                                        <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                            <a className="page-link"
+                                                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                            >
+                                                Previous
+                                            </a>
+                                        </li>
+
+                                        {/* Page Numbers */}
+                                        {Array.from({ length: totalPages }, (_, i) => (
+                                            <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                                <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                                    {i + 1}
+                                                </a>
+                                            </li>
+                                        ))}
+
+                                        {/* Next */}
+                                        <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                            <a className="page-link"
+                                                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                            >
+                                                Next
+                                            </a>
+                                        </li>
+
                                     </ul>
                                 </nav>
                             </div>

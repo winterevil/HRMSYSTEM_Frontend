@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { apiFetch } from "@/app/utils/apiClient";
+
 interface RecruitmentRequirementDto {
     id?: number;
     requirement?: string;
@@ -11,6 +13,7 @@ interface RecruitmentRequirementDto {
     employeeName?: string;
     status?: number;
 }
+
 interface RecruitmentPosition {
     id: number;
     positionName: string;
@@ -18,17 +21,24 @@ interface RecruitmentPosition {
     departmentId?: number;
     departmentName?: string;
 }
+
 export default function RecruitmentPage() {
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-
     const [requirements, setRequirements] = useState<RecruitmentRequirementDto[]>([]);
+    const [positions, setPositions] = useState<RecruitmentPosition[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [processRequirements, setProcessRequirements] = useState<RecruitmentRequirementDto | null>(null);
-    const [currentRequirement, setCurrentRequirement] = useState<RecruitmentRequirementDto | null>(null);
-    const [positions, setPositions] = useState<RecruitmentPosition[]>([]);
+
+    const [currentRequirement, setCurrentRequirement] =
+        useState<RecruitmentRequirementDto | null>(null);
+    const [processRequirements, setProcessRequirements] =
+        useState<RecruitmentRequirementDto | null>(null);
+
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [filterStatus, setFilterStatus] = useState<number | null>(null);
+
+    const [currentRole, setCurrentRole] = useState<string>("");
+
     const statuses = [
         { value: 0, label: "Pending", className: "badge badge-warning" },
         { value: 1, label: "Approved", className: "badge badge-success" },
@@ -37,433 +47,493 @@ export default function RecruitmentPage() {
         { value: 4, label: "Cancelled", className: "badge badge-secondary" },
     ];
 
-    const filteredRequirements = requirements.filter((emp) => {
-        const matchesSearch = emp.employeeName?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Filter safely (no crash when null)
+    const filteredRequirements = (requirements ?? []).filter((req) => {
+        const matchesSearch =
+            req.employeeName?.toLowerCase().includes(searchTerm.toLowerCase());
+
         const matchesStatus =
-            filterStatus === undefined ||
-            filterStatus === null ||
-            isNaN(filterStatus) ||
-            emp.status === filterStatus;
+            filterStatus === null || req.status === filterStatus;
+
         return matchesSearch && matchesStatus;
     });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredRequirements.length / itemsPerPage);
 
-
-    // Lấy vai trò hiện tại từ JWT
-    const [currentRole, setCurrentRole] = useState<string>("");
-
-    // Giải mã JWT để lấy vai trò
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredRequirements.slice(indexOfFirstItem, indexOfLastItem);
+    // Load role from JWT
     useEffect(() => {
         const token = localStorage.getItem("jwt");
-        if (token) {
-            try {
-                // Giải mã payload của JWT
-                const payload = JSON.parse(atob(token.split(".")[1]));
+        if (!token) return;
 
-                // Lấy vai trò từ payload
-                const role =
-                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-                    "";
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            const role =
+                payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
 
-                setCurrentRole(role);
-            } catch (err) {
-                console.error("Error decoding JWT", err);
-            }
+            setCurrentRole(role);
+        } catch (err) {
+            console.error("JWT decode error:", err);
         }
     }, []);
 
+    // OPEN MODALS
     function openAdd() {
         setModalMode("add");
-        setCurrentRequirement(null);
+        setCurrentRequirement({
+            requirement: "",
+            positionId: undefined,
+            status: 0,
+        });
     }
 
-    function openEdit(requirement: RecruitmentRequirementDto) {
+    function openEdit(req: RecruitmentRequirementDto) {
         setModalMode("edit");
-        setCurrentRequirement(requirement);
+        setCurrentRequirement(req);
     }
 
+    function openProcess(req: RecruitmentRequirementDto) {
+        setProcessRequirements(req);
+    }
+
+    // LOAD DATA
     useEffect(() => {
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/auth/login";
-            return;
-        }
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        };
-
         async function loadData() {
             try {
-                const token = localStorage.getItem("jwt");
-                const headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                };
+                // Load positions
+                let positionsUrl = "/recruitmentposition";
+                if (currentRole === "Manager")
+                    positionsUrl = "/recruitmentposition/by-department";
 
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                const posData = await apiFetch(positionsUrl).catch(() => []);
+                setPositions(Array.isArray(posData) ? posData : []);
 
-                let positionsUrl = "https://localhost:7207/api/recruitmentposition";
-                if (role === "Manager") {
-                    positionsUrl = "https://localhost:7207/api/recruitmentposition/by-department";
-                }
-
-                // Fetch từng cái để tránh throw toàn bộ
-                const positionsRes = await fetch(positionsUrl, { headers });
-                const positionsData = await positionsRes.json();
-                setPositions(positionsData);
-
-                const requirementsRes = await fetch("https://localhost:7207/api/recruitmentrequirement", { headers });
-                if (requirementsRes.ok) {
-                    const requirementsData = await requirementsRes.json();
-                    setRequirements(requirementsData);
-                } else {
-                    console.warn("⚠️ RecruitmentRequirement fetch failed:", requirementsRes.status);
-                }
+                // Load requirements
+                const reqData = await apiFetch("/recruitmentrequirement").catch(() => []);
+                setRequirements(Array.isArray(reqData) ? reqData : []);
 
                 setLoading(false);
-            } catch (err) {
+            } catch (err: unknown) {
                 const error = err as Error;
                 setError(error.message);
+                setPositions([]);
+                setRequirements([]);
                 setLoading(false);
             }
         }
 
         loadData();
-    }, []);
+    }, [currentRole]);
 
     if (loading) return <div>Loading...</div>;
-    //if (error) return <div className="alert alert-danger">{error}</div>;
+    if (currentRole !== "Manager" && currentRole !== "HR") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
 
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    This page is restricted to HR and Manager roles.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Your role does not include access to recruitment requests.
+                </p>
+            </div>
+        );
+    }
+
+    // SAVE REQUIREMENT
     async function handleSave() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        }
-
         try {
-            let body: any = {};
+            const token = localStorage.getItem("jwt");
+            if (!token) return;
 
-            if (modalMode === "add") {
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                const empId = payload["employeeId"] || payload["sub"];
-                body = {
-                    requirement: currentRequirement?.requirement,
-                    positionId: currentRequirement?.positionId,
-                    employeeId: empId,
-                    status: 0
-                };
-            } else {
-                body = {
-                    id: currentRequirement?.id,
-                    requirement: currentRequirement?.requirement,
-                    positionId: currentRequirement?.positionId,
-                    status: currentRequirement?.status
-                };
-            }
-            const url = modalMode === "add"
-                ? "https://localhost:7207/api/recruitmentrequirement"
-                : `https://localhost:7207/api/recruitmentrequirement/${currentRequirement?.id}`;
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            const empId = payload["employeeId"] || payload["sub"];
+
+            const body =
+                modalMode === "add"
+                    ? {
+                        requirement: currentRequirement?.requirement,
+                        positionId: currentRequirement?.positionId,
+                        employeeId: empId,
+                        status: 0,
+                    }
+                    : {
+                        id: currentRequirement?.id,
+                        requirement: currentRequirement?.requirement,
+                        positionId: currentRequirement?.positionId,
+                        status: currentRequirement?.status,
+                    };
+
+            const url =
+                modalMode === "add"
+                    ? "/recruitmentrequirement"
+                    : `/recruitmentrequirement/${currentRequirement?.id}`;
 
             const method = modalMode === "add" ? "POST" : "PUT";
 
-            const res = await fetch(url, {
-                method,
-                headers,
-                body: JSON.stringify(body)
-            });
+            await apiFetch(url, method, body);
 
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
+            toast.success("Requirement saved successfully");
 
-            toast.success("Requirement saved successfully", {
-                position: "top-right",
-                autoClose: 3000,
-            });
-
-            const requirementsRes = await fetch("https://localhost:7207/api/recruitmentrequirement", { headers });
-            const requirements = await requirementsRes.json();
-            setRequirements(requirements);
+            const reqs = await apiFetch("/recruitmentrequirement").catch(() => []);
+            setRequirements(Array.isArray(reqs) ? reqs : []);
 
             (window as any).$("#exampleModal").modal("hide");
-        } catch (err: unknown) {
-            const error = err as Error;
-            toast.error(error.message, {
-                position: "top-right",
-                autoClose: 3000,
-            });
+        } catch (err: any) {
+            toast.error(err.message || "Save failed");
         }
     }
 
-    function openProcess(requirement: RecruitmentRequirementDto) {
-        setProcessRequirements(requirement);
-    }
-
+    // PROCESS APPROVAL
     async function handleProcess() {
         if (!processRequirements?.id) return;
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        }
 
         try {
-            const url = `https://localhost:7207/api/recruitmentrequirement/approve/${processRequirements.id}`;
-            const body = JSON.stringify(processRequirements.status); 
+            await apiFetch(
+                `/recruitmentrequirement/approve/${processRequirements.id}`,
+                "POST",
+                { status: processRequirements.status }
+            );
 
-            const response = await fetch(url, {
-                method: "POST",
-                headers,
-                body
-            });
+            toast.success("Requirement processed!");
 
-            if (!response.ok) throw new Error(await response.text());
-
-            toast.success("Requirement processed successfully", {
-                position: "top-right",
-                autoClose: 3000,
-            });
-
-            const requirementsRes = await fetch("https://localhost:7207/api/recruitmentrequirement", { headers });
-            const requirements = await requirementsRes.json();
-            setRequirements(requirements);
+            const reqs = await apiFetch("/recruitmentrequirement").catch(() => []);
+            setRequirements(Array.isArray(reqs) ? reqs : []);
 
             (window as any).$("#processModal").modal("hide");
-        } catch (err: unknown) {
-            const error = err as Error;
-            toast.error(error.message, {
-                position: "top-right",
-                autoClose: 3000,
-            });
+        } catch (err: any) {
+            toast.error(err.message || "Process failed");
         }
     }
+
     return (
         <div className="section-body mt-3">
             <div className="container-fluid">
-                <div className="row clearfix">
-                    <div className="col-12">
-                        <div className="card">
-                            <div className="card-body">
-                                <div className="row">
-                                    <div className="col-lg-6 col-md-6 col-sm-6">
-                                        <label>Search</label>
-                                        <div className="input-group">
-                                            <input type="text" className="form-control" placeholder="Enter name to search..."
-                                                value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                                        </div>
-                                    </div>
 
-                                    <div className="col-lg-6 col-md-6 col-sm-6">
-                                        <label>Status</label>
-                                        <div className="form-group">
-                                            <select className="custom-select" value={filterStatus ?? ""} 
-                                                onChange={(e) =>
-                                                    setFilterStatus(e.target.value ? Number(e.target.value) : null)
-                                                }>
-                                                <option value="">All Statuses</option>
-                                                {statuses.map((status) => (
-                                                    <option key={status.value} value={status.value}>{status.label}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
+                {/* SEARCH + FILTER */}
+                <div className="card">
+                    <div className="card-body">
+                        <div className="row">
+
+                            <div className="col-lg-6">
+                                <label>Search</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Search requester..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
                             </div>
+
+                            <div className="col-lg-6">
+                                <label>Status</label>
+                                <select
+                                    className="custom-select"
+                                    value={filterStatus ?? ""}
+                                    onChange={(e) =>
+                                        setFilterStatus(
+                                            e.target.value ? Number(e.target.value) : null
+                                        )
+                                    }
+                                >
+                                    <option value="">All Status</option>
+                                    {statuses.map((s) => (
+                                        <option key={s.value} value={s.value}>
+                                            {s.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                         </div>
-                        <div className="tab-content mt-3">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <ul className="nav nav-tabs page-header-tab">
-
-                                </ul>
-                                {currentRole === "Manager" && (
-                                    <div className="header-action">
-                                        <button type="button" className="btn btn-primary" data-toggle="modal" data-target="#exampleModal" onClick={() => openAdd()}><i className="fa-solid fa-plus mr-2"></i>Add</button>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="tab-pane fade show active" id="Departments-list" role="tabpanel">
-                                <div className="card">
-                                    <div className="card-header border-bottom">
-                                        <h3 className="card-title">Recruitment Requirement List</h3>
-
-                                    </div>
-                                    <div className="card-body">
-                                        <div className="table-responsive">
-                                            <table className="table table-striped table-vcenter table-hover mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>#</th>
-                                                        <th>ID</th>
-                                                        <th>Requester</th>
-                                                        <th>Requirement</th>
-                                                        <th>Position</th>
-                                                        <th>Status</th>
-                                                        {(currentRole === "HR" || currentRole === "Manager") && (
-                                                            <th>Action</th>
-                                                        )}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {filteredRequirements.map((requirement) => (
-                                                        <tr key={requirement.id}>
-                                                            <td className="w40">
-                                                                <label className="custom-control custom-checkbox">
-                                                                    <input type="checkbox" className="custom-control-input" name="example-checkbox1" value="option1" />
-                                                                    <span className="custom-control-label">&nbsp;</span>
-                                                                </label>
-                                                            </td>
-                                                            <td>{requirement.id}</td>
-                                                            <td><div className="font-15">{requirement.employeeName}</div></td>
-                                                            <td>{requirement.requirement}</td>
-                                                            <td>{requirement.positionName}</td>
-                                                            <td>{(() => {
-                                                                const status = statuses.find((s) => s.value === requirement.status);
-                                                                return status ? (
-                                                                    <span className={status.className}>{status.label}</span>
-                                                                ) : (
-                                                                    "N/A"
-                                                                );
-                                                            })()}</td>
-                                                            {(currentRole === "HR" || currentRole === "Manager") && (
-                                                                <td>
-                                                                    {currentRole === "Manager" && (
-                                                                        <button type="button" className="btn btn-icon" title="Edit" data-toggle="modal" data-target="#exampleModal" onClick={() => openEdit(requirement)}><i className="fa-solid fa-edit"></i></button>
-                                                                    )}
-                                                                    {currentRole === "HR" && (
-                                                                        <button type="button" className="btn btn-icon" title="Process" data-toggle="modal" data-target="#processModal" onClick={() => openProcess(requirement)}>
-                                                                            <i className="fa-solid fa-check-circle"></i>
-                                                                        </button>
-                                                                    )}
-                                                                </td>
-                                                            )}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <ul className="pagination mt-2">
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">Previous</a></li>
-                            <li className="page-item active"><a className="page-link" href="javascript:void(0);">1</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">2</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">3</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">Next</a></li>
-                        </ul>
                     </div>
                 </div>
-            </div>
 
+                {/* TABLE */}
+                <div className="card mt-3">
+                    <div className="card-header border-bottom d-flex justify-content-between">
+                        <h3 className="card-title">Recruitment Requirements</h3>
 
-            <div className="modal fade" id="exampleModal" tabIndex={-1} role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div className="modal-dialog" role="document">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h5 className="modal-title" id="exampleModalLabel">{modalMode === "add" ? "Add Requirement" : "Edit Requirement"}</h5>
-                            <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        {currentRole === "Manager" ? (
+                            <button
+                                className="btn btn-primary"
+                                data-toggle="modal"
+                                data-target="#exampleModal"
+                                onClick={openAdd}
+                            >
+                                <i className="fa fa-plus mr-2"></i>Add
+                            </button>
+                        ) : null}
+                    </div>
+
+                    <div className="card-body">
+                        <div className="table-responsive">
+                            <table className="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>ID</th>
+                                        <th>Requester</th>
+                                        <th>Requirement</th>
+                                        <th>Position</th>
+                                        <th>Status</th>
+                                        {(currentRole === "HR" || currentRole === "Manager") ? (
+                                            <th>Action</th>
+                                        ) : null}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(currentItems ?? []).map((r) => (
+                                        <tr key={r.id}>
+                                            <td>
+                                                <input type="checkbox" />
+                                            </td>
+                                            <td>{r.id}</td>
+                                            <td>{r.employeeName}</td>
+                                            <td>{r.requirement}</td>
+                                            <td>{r.positionName}</td>
+                                            <td>
+                                                {(() => {
+                                                    const status = statuses.find(
+                                                        (s) => s.value === r.status
+                                                    );
+                                                    return status ? (
+                                                        <span className={status.className}>
+                                                            {status.label}
+                                                        </span>
+                                                    ) : (
+                                                        "N/A"
+                                                    );
+                                                })()}
+                                            </td>
+
+                                            {(currentRole === "HR" || currentRole === "Manager") ? (
+                                                <td>
+                                                    {currentRole === "Manager" ? (
+                                                        <button
+                                                            className="btn btn-icon"
+                                                            data-toggle="modal"
+                                                            data-target="#exampleModal"
+                                                            onClick={() => openEdit(r)}
+                                                        >
+                                                            <i className="fa fa-edit"></i>
+                                                        </button>
+                                                    ) : null}
+
+                                                    {currentRole === "HR" ? (
+                                                        <button
+                                                            className="btn btn-icon"
+                                                            data-toggle="modal"
+                                                            data-target="#processModal"
+                                                            onClick={() => openProcess(r)}
+                                                        >
+                                                            <i className="fa fa-check-circle"></i>
+                                                        </button>
+                                                    ) : null}
+                                                </td>
+                                            ) : null}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                        <div className="modal-body">
-                            <div className="row clearfix">
-                                <div className="col-md-12">
-                                    <div className="form-group">
-                                        <input type="hidden" className="form-control" placeholder="Requirement Id"
-                                            value={currentRequirement?.id ?? ""} />
-                                    </div>
+                        <nav aria-label="Page navigation">
+                            <ul className="pagination mb-0 justify-content-end">
+
+                                {/* Previous */}
+                                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                    <a className="page-link"
+                                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                    >
+                                        Previous
+                                    </a>
+                                </li>
+
+                                {/* Page Numbers */}
+                                {Array.from({ length: totalPages }, (_, i) => (
+                                    <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                        <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                            {i + 1}
+                                        </a>
+                                    </li>
+                                ))}
+
+                                {/* Next */}
+                                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                    <a className="page-link"
+                                        onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                    >
+                                        Next
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </nav>
+                    </div>
+
+                </div>
+
+                {/* MODAL: ADD / EDIT */}
+                <div className="modal fade" id="exampleModal">
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+
+                            <div className="modal-header">
+                                <h5>{modalMode === "add" ? "Add Requirement" : "Edit Requirement"}</h5>
+                                <button className="close" data-dismiss="modal">&times;</button>
+                            </div>
+
+                            <div className="modal-body">
+
+                                {/* REQUIREMENT TEXT */}
+                                <div className="form-group">
+                                    <label>Requirement</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={currentRequirement?.requirement ?? ""}
+                                        onChange={(e) =>
+                                            setCurrentRequirement((prev) => ({
+                                                ...(prev || {}),
+                                                requirement: e.target.value,
+                                            }))
+                                        }
+                                    />
                                 </div>
-                                <div className="col-md-12">
-                                    <div className="form-group">
-                                        <input type="text" className="form-control" placeholder="Requirement"
-                                            value={currentRequirement?.requirement ?? ""}
-                                            onChange={(e) => setCurrentRequirement({ ...currentRequirement, requirement: e.target.value })} />
-                                    </div>
+
+                                {/* POSITION SELECT */}
+                                <div className="form-group">
+                                    <label>Position</label>
+                                    <select
+                                        className="form-control"
+                                        value={currentRequirement?.positionId ?? ""}
+                                        onChange={(e) =>
+                                            setCurrentRequirement((prev) => ({
+                                                ...(prev || {}),
+                                                positionId: Number(e.target.value),
+                                            }))
+                                        }
+                                    >
+                                        <option value="">Select Position</option>
+                                        {positions.map((pos) => (
+                                            <option key={pos.id} value={pos.id}>
+                                                {pos.positionName}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
-                                <div className="col-md-12">
+
+                                {/* STATUS ONLY IN EDIT */}
+                                {modalMode === "edit" && (
                                     <div className="form-group">
+                                        <label>Status</label>
                                         <select
                                             className="form-control"
-                                            value={currentRequirement?.positionId ?? ""}
+                                            value={currentRequirement?.status ?? ""}
                                             onChange={(e) =>
-                                                setCurrentRequirement({
-                                                    ...(currentRequirement || {}),
-                                                    positionId: Number(e.target.value),
-                                                })
+                                                setCurrentRequirement((prev) => ({
+                                                    ...(prev || {}),
+                                                    status: Number(e.target.value),
+                                                }))
                                             }
                                         >
-                                            <option value="">Select Position</option>
-                                            {positions.map((pos) => (
-                                                <option key={pos.id} value={pos.id}>
-                                                    {pos.positionName}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {modalMode === "edit" && (
-                                    <div className="col-md-12">
-                                        <div className="form-group">
-                                            <select className="form-control" value={currentRequirement?.status ?? ""}
-                                                onChange={(e) => setCurrentRequirement({ ...currentRequirement, status: Number(e.target.value) })}>
-                                                <option value="">Select Status</option>
-                                                {statuses.map((status) => (
-                                                    <option key={status.value} value={status.value}>{status.label}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
-                            <button type="button" className="btn btn-primary" onClick={handleSave}>Save changes</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="modal fade" id="processModal" tabIndex={-1} role="dialog">
-                <div className="modal-dialog" role="document">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h5 className="modal-title">Process Overtime</h5>
-                            <button type="button" className="close" data-dismiss="modal"><span>&times;</span></button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <div className="form-group">
-                                    <select className="form-control" value={processRequirements?.status ?? ""}
-                                        onChange={(e) => setProcessRequirements({ ...processRequirements, status: Number(e.target.value) })}>
-                                        <option value="">Select Status</option>
-                                        {statuses
-                                            .filter(s => s.value === 1 || s.value === 2 || s.value === 3)
-                                            .map((status) => (
+                                            <option value="">Select Status</option>
+                                            {statuses.map((status) => (
                                                 <option key={status.value} value={status.value}>
                                                     {status.label}
                                                 </option>
                                             ))}
-                                    </select>
-                                </div>
+                                        </select>
+                                    </div>
+                                )}
+
                             </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" data-dismiss="modal">Close</button>
-                            <button type="button" className="btn btn-success" onClick={() => handleProcess()}>Save</button>
+
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" data-dismiss="modal">
+                                    Close
+                                </button>
+                                <button className="btn btn-primary" onClick={handleSave}>
+                                    Save
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 </div>
+
+                {/* MODAL: PROCESS */}
+                <div className="modal fade" id="processModal">
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+
+                            <div className="modal-header">
+                                <h5>Process Requirement</h5>
+                                <button className="close" data-dismiss="modal">&times;</button>
+                            </div>
+
+                            <div className="modal-body">
+                                <label>Status</label>
+                                <select
+                                    className="form-control"
+                                    value={processRequirements?.status ?? ""}
+                                    onChange={(e) =>
+                                        setProcessRequirements((prev) => ({
+                                            ...(prev || {}),
+                                            status: Number(e.target.value),
+                                        }))
+                                    }
+                                >
+                                    <option value="">Select Status</option>
+                                    {statuses
+                                        .filter((s) => s.value === 1 || s.value === 2 || s.value === 3)
+                                        .map((s) => (
+                                            <option key={s.value} value={s.value}>
+                                                {s.label}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" data-dismiss="modal">
+                                    Close
+                                </button>
+                                <button className="btn btn-success" onClick={handleProcess}>
+                                    Save
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <ToastContainer />
             </div>
-            <ToastContainer />
         </div>
     );
 }

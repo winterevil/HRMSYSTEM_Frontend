@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useState, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
+import { apiFetch } from "@/app/utils/apiClient";
 import "react-toastify/dist/ReactToastify.css";
 
 // Định nghĩa kiểu dữ liệu cho vị trí tuyển dụng
@@ -29,15 +30,26 @@ export default function PositionPage() {
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
 
     // Lọc vị trí dựa trên từ khóa tìm kiếm và bộ lọc phòng ban
-    const filteredPositions = positions.filter((emp) => {
+    const filteredPositions = (positions ?? []).filter((emp) => {
         const matchesSearch = emp.positionName
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase());
+
         const matchesDepartment =
             selectedDepartmentId === "" ||
             emp.departmentId?.toString() === selectedDepartmentId;
+
         return matchesSearch && matchesDepartment;
     });
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredPositions.length / itemsPerPage);
+
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredPositions.slice(indexOfFirstItem, indexOfLastItem);
 
     // Lấy vai trò hiện tại từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
@@ -73,99 +85,93 @@ export default function PositionPage() {
     }
 
     useEffect(() => {
-        const token = localStorage.getItem("jwt");
-        if (!token) {
-            window.location.href = "/login"; // Redirect to login if no token
-            return;
-        }
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        }
 
         async function loadData() {
             try {
-                const [positionsRes, departmentsRes] = await Promise.all([
-                    fetch("https://localhost:7207/api/recruitmentposition", { headers }),
-                    fetch("https://localhost:7207/api/department", { headers }),
-                ]);
+                const departmentsData = await apiFetch("/department");
+                const positionsData = await apiFetch("/recruitmentposition");
 
-                if (!positionsRes.ok) throw new Error(await positionsRes.text());
-                if (!departmentsRes.ok) throw new Error(await departmentsRes.text());
+                setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+                setPositions(Array.isArray(positionsData) ? positionsData : []);
 
-                const positionsData = await positionsRes.json();
-                const departmentsData = await departmentsRes.json();
-
-                setPositions(positionsData);
-                setDepartments(departmentsData);
                 setLoading(false);
             } catch (err: unknown) {
                 const error = err as Error;
                 setError(error.message);
+                setDepartments([]);
+                setPositions([]);
                 setLoading(false);
             }
         }
+
         loadData();
     }, []);
 
     if (loading) return <div>Loading...</div>;
-    if (error) return <div className="alert alert-danger">{error}</div>;
+    //if (error) return <div className="alert alert-danger">{error}</div>;
+    if (currentRole !== "Manager" && currentRole !== "HR") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
+
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    This page is restricted to HR and Manager roles.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Your role does not include access to recruitment requests.
+                </p>
+            </div>
+        );
+    }
 
     async function handleSave() {
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        }
-
         try {
-            let body: any = {};
-
-            if (modalMode === "add") {
-                body = {
-                    positionName: currentPosition?.positionName,
-                    description: currentPosition?.description,
-                    departmentId: currentPosition?.departmentId,
-                    departmentName: departments.find(d => d.id === currentPosition?.departmentId)?.departmentName
-                };
-            } else {
-                body = {
-                    id: currentPosition?.id,
-                    positionName: currentPosition?.positionName,
-                    description: currentPosition?.description,
-                    departmentId: currentPosition?.departmentId,
-                    departmentName: departments.find(d => d.id === currentPosition?.departmentId)?.departmentName
-                };
-            }
-            const url = modalMode === "add"
-                ? "https://localhost:7207/api/recruitmentposition"
-                : "https://localhost:7207/api/recruitmentposition";
+            const body =
+                modalMode === "add"
+                    ? {
+                        positionName: currentPosition?.positionName,
+                        description: currentPosition?.description,
+                        departmentId: currentPosition?.departmentId,
+                        departmentName: departments.find(
+                            (d) => d.id === currentPosition?.departmentId
+                        )?.departmentName,
+                    }
+                    : {
+                        id: currentPosition?.id,
+                        positionName: currentPosition?.positionName,
+                        description: currentPosition?.description,
+                        departmentId: currentPosition?.departmentId,
+                        departmentName: departments.find(
+                            (d) => d.id === currentPosition?.departmentId
+                        )?.departmentName,
+                    };
 
             const method = modalMode === "add" ? "POST" : "PUT";
-
-            const res = await fetch(url, {
-                method,
-                headers,
-                body: JSON.stringify(body),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
-
+            await apiFetch("/recruitmentposition", method, body);
             toast.success("Position saved successfully", {
                 position: "top-right",
                 autoClose: 3000,
             });
 
-            const positionRes = await fetch("https://localhost:7207/api/recruitmentposition", { headers });
-            const positions = await positionRes.json();
-            setPositions(positions);
-
+            const updated = await apiFetch("/recruitmentposition");
+            setPositions(updated);
             (window as any).$("#exampleModal").modal("hide");
         } catch (err: unknown) {
             const error = err as Error;
@@ -183,24 +189,8 @@ export default function PositionPage() {
     async function handleDelete() {
         if (!deletePositionId) return;
 
-        const token = localStorage.getItem("jwt");
-        if (!token) return;
-
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-        }
-
         try {
-            const res = await fetch(`https://localhost:7207/api/recruitmentposition/${deletePositionId}`, {
-                method: "DELETE",
-                headers,
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(errorData || "Something went wrong");
-            }
+            await apiFetch(`/recruitmentposition/${deletePositionId}`, "DELETE");
             toast.success("Position deleted successfully", {
                 position: "top-right",
                 autoClose: 3000,
@@ -281,7 +271,7 @@ export default function PositionPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {filteredPositions.map((position) => (
+                                                    {currentItems.map((position) => (
                                                         <tr key={position.id}>
                                                             <td className="w40">
                                                                 <label className="custom-control custom-checkbox">
@@ -304,17 +294,42 @@ export default function PositionPage() {
                                                 </tbody>
                                             </table>
                                         </div>
+                                        <nav aria-label="Page navigation">
+                                            <ul className="pagination mb-0 justify-content-end">
+
+                                                {/* Previous */}
+                                                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                                    <a className="page-link"
+                                                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                                    >
+                                                        Previous
+                                                    </a>
+                                                </li>
+
+                                                {/* Page Numbers */}
+                                                {Array.from({ length: totalPages }, (_, i) => (
+                                                    <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                                        <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                                            {i + 1}
+                                                        </a>
+                                                    </li>
+                                                ))}
+
+                                                {/* Next */}
+                                                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                                    <a className="page-link"
+                                                        onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                                    >
+                                                        Next
+                                                    </a>
+                                                </li>
+
+                                            </ul>
+                                        </nav>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <ul className="pagination mt-2">
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">Previous</a></li>
-                            <li className="page-item active"><a className="page-link" href="javascript:void(0);">1</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">2</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">3</a></li>
-                            <li className="page-item"><a className="page-link" href="javascript:void(0);">Next</a></li>
-                        </ul>
                     </div>
                 </div>
             </div>

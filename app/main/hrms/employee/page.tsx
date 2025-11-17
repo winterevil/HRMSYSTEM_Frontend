@@ -112,29 +112,39 @@ export default function EmployeePage() {
     const filteredEmployees = employees.filter(emp =>
         emp.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    // Tính tổng số trang
+    const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
 
+    // Tính dữ liệu đang hiển thị theo trang
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
     // Lấy vai trò hiện tại từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
+    const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
 
-    // Giải mã JWT để lấy vai trò
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (token) {
             try {
-                // Giải mã payload của JWT
                 const payload = JSON.parse(atob(token.split(".")[1]));
-
-                // Lấy vai trò từ payload
                 const role =
-                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
+                const email =
+                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] ||
+                    payload["email"] ||
                     "";
 
                 setCurrentRole(role);
+                setCurrentUserEmail(email); // 🆕 lưu email người đăng nhập
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
         }
     }, []);
+
 
     // Các thống kê
     // 1. Tổng nhân viên
@@ -318,61 +328,61 @@ export default function EmployeePage() {
                     )}
                 </div>
                 {currentRole !== "Employee" && (
-                <div className="row">
-                    {/* Thống kê nhanh */}
-                    <div className="col-lg-3 col-md-6">
-                        <div className="card">
-                            <div className="card-body w_sparkline">
-                                <div className="details">
-                                    <span>Total Employee</span>
-                                    <h3 className="mb-0 counter">{totalEmployee}</h3>
+                    <div className="row">
+                        {/* Thống kê nhanh */}
+                        <div className="col-lg-3 col-md-6">
+                            <div className="card">
+                                <div className="card-body w_sparkline">
+                                    <div className="details">
+                                        <span>Total Employee</span>
+                                        <h3 className="mb-0 counter">{totalEmployee}</h3>
+                                    </div>
+                                    <div className="w_chart">
+                                        <span id="mini-bar-chart1" className="mini-bar-chart"></span>
+                                    </div>
                                 </div>
-                                <div className="w_chart">
-                                    <span id="mini-bar-chart1" className="mini-bar-chart"></span>
+                            </div>
+                        </div>
+                        <div className="col-lg-3 col-md-6">
+                            <div className="card">
+                                <div className="card-body w_sparkline">
+                                    <div className="details">
+                                        <span>New Employee</span>
+                                        <h3 className="mb-0 counter">{newEmployee}</h3>
+                                    </div>
+                                    <div className="w_chart">
+                                        <span id="mini-bar-chart2" className="mini-bar-chart"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-lg-3 col-md-6">
+                            <div className="card">
+                                <div className="card-body w_sparkline">
+                                    <div className="details">
+                                        <span>Male</span>
+                                        <h3 className="mb-0 counter">{maleCount}</h3>
+                                    </div>
+                                    <div className="w_chart">
+                                        <span id="mini-bar-chart3" className="mini-bar-chart"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-lg-3 col-md-6">
+                            <div className="card">
+                                <div className="card-body w_sparkline">
+                                    <div className="details">
+                                        <span>Female</span>
+                                        <h3 className="mb-0 counter">{femaleCount}</h3>
+                                    </div>
+                                    <div className="w_chart">
+                                        <span id="mini-bar-chart4" className="mini-bar-chart"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div className="col-lg-3 col-md-6">
-                        <div className="card">
-                            <div className="card-body w_sparkline">
-                                <div className="details">
-                                    <span>New Employee</span>
-                                    <h3 className="mb-0 counter">{newEmployee}</h3>
-                                </div>
-                                <div className="w_chart">
-                                    <span id="mini-bar-chart2" className="mini-bar-chart"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-3 col-md-6">
-                        <div className="card">
-                            <div className="card-body w_sparkline">
-                                <div className="details">
-                                    <span>Male</span>
-                                    <h3 className="mb-0 counter">{maleCount}</h3>
-                                </div>
-                                <div className="w_chart">
-                                    <span id="mini-bar-chart3" className="mini-bar-chart"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-3 col-md-6">
-                        <div className="card">
-                            <div className="card-body w_sparkline">
-                                <div className="details">
-                                    <span>Female</span>
-                                    <h3 className="mb-0 counter">{femaleCount}</h3>
-                                </div>
-                                <div className="w_chart">
-                                    <span id="mini-bar-chart4" className="mini-bar-chart"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 )}
                 <div className="tab-content">
                     <div className="tab-pane fade show active" id="Employee-list" role="tabpanel">
@@ -414,7 +424,7 @@ export default function EmployeePage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredEmployees.map((emp) => (
+                                            {currentItems.map((emp) => (
                                                 <tr key={emp.id}>
                                                     <td className="w40">
                                                         <label className="custom-control custom-checkbox">
@@ -468,6 +478,38 @@ export default function EmployeePage() {
                                         </tbody>
                                     </table>
                                 </div>
+                                <nav aria-label="Page navigation">
+                                    <ul className="pagination mb-0 justify-content-end">
+
+                                        {/* Previous */}
+                                        <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                            <a className="page-link"
+                                                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                                            >
+                                                Previous
+                                            </a>
+                                        </li>
+
+                                        {/* Page Numbers */}
+                                        {Array.from({ length: totalPages }, (_, i) => (
+                                            <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                                                <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
+                                                    {i + 1}
+                                                </a>
+                                            </li>
+                                        ))}
+
+                                        {/* Next */}
+                                        <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                            <a className="page-link"
+                                                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                                            >
+                                                Next
+                                            </a>
+                                        </li>
+
+                                    </ul>
+                                </nav>
                             </div>
                         </div>
                     </div>
@@ -664,7 +706,8 @@ export default function EmployeePage() {
                                     <div className="form-group">
                                         <input type="text" className="form-control" placeholder="Email"
                                             value={currentEmp.email || ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, email: e.target.value })} />
+                                            onChange={(e) => setCurrentEmp({ ...currentEmp, email: e.target.value })}
+                                            disabled={modalMode === "edit"} />
                                     </div>
                                 </div>
                                 {/* Phone */}
@@ -694,11 +737,25 @@ export default function EmployeePage() {
                                 {/* Password */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
-                                        <input type="password" className="form-control" placeholder="Password"
+                                        <input
+                                            type="password"
+                                            className="form-control"
+                                            placeholder={
+                                                modalMode === "add"
+                                                    ? "Set initial password"
+                                                    : currentEmp.email === currentUserEmail
+                                                        ? "Change your password"
+                                                        : "Password (locked)"
+                                            }
                                             value={currentEmp.password || ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, password: e.target.value })} />
+                                            onChange={(e) => setCurrentEmp({ ...currentEmp, password: e.target.value })}
+                                            disabled={
+                                                modalMode === "edit" && currentEmp.email !== currentUserEmail
+                                            }
+                                        />
                                     </div>
                                 </div>
+
                                 {/* Gender */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
