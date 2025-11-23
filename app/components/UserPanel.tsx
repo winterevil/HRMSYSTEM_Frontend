@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export default function UserPanel() {
     return (
@@ -13,16 +13,16 @@ export default function UserPanel() {
                 <div className="card-body">
                     <div className="media">
                         <img className="avatar avatar-xl mr-3" src="/assets/images/sm/avatar1.jpg" alt="avatar" />
-                            <div className="media-body">
-                                <h5 className="m-0">Sara Hopkins</h5>
-                                <p className="text-muted mb-0">Webdeveloper</p>
-                                <ul className="social-links list-inline mb-0 mt-2">
-                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Facebook"><i className="fa fa-facebook"></i></a></li>
-                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Twitter"><i className="fa fa-twitter"></i></a></li>
-                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="1234567890"><i className="fa fa-phone"></i></a></li>
-                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="@skypename"><i className="fa fa-skype"></i></a></li>
-                                </ul>
-                            </div>
+                        <div className="media-body">
+                            <h5 className="m-0">Sara Hopkins</h5>
+                            <p className="text-muted mb-0">Webdeveloper</p>
+                            <ul className="social-links list-inline mb-0 mt-2">
+                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Facebook"><i className="fa fa-facebook"></i></a></li>
+                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Twitter"><i className="fa fa-twitter"></i></a></li>
+                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="1234567890"><i className="fa fa-phone"></i></a></li>
+                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="@skypename"><i className="fa fa-skype"></i></a></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -50,7 +50,7 @@ export default function UserPanel() {
                     <div className="form-group">
                         <label className="d-block">Total Income<span className="float-right">77%</span></label>
                         <div className="progress progress-xs">
-                            <div className="progress-bar bg-blue" role="progressbar" aria-valuenow={77} aria-valuemin={0} aria-valuemax={100} style={{width: "77%"}}></div>
+                            <div className="progress-bar bg-blue" role="progressbar" aria-valuenow={77} aria-valuemin={0} aria-valuemax={100} style={{ width: "77%" }}></div>
                         </div>
                     </div>
                     <div className="form-group">
@@ -81,11 +81,11 @@ export default function UserPanel() {
                             <a href="javascript:void(0);">
                                 <div className="media">
                                     <img className="media-object " src="/assets/images/xs/avatar4.jpg" alt="" />
-                                        <div className="media-body">
-                                            <span className="name">Donald Gardner</span>
-                                            <span className="message">Designer, Blogger</span>
-                                            <span className="badge badge-outline status"></span>
-                                        </div>
+                                    <div className="media-body">
+                                        <span className="name">Donald Gardner</span>
+                                        <span className="message">Designer, Blogger</span>
+                                        <span className="badge badge-outline status"></span>
+                                    </div>
                                 </div>
                             </a>
                         </li>
@@ -93,11 +93,11 @@ export default function UserPanel() {
                             <a href="javascript:void(0);">
                                 <div className="media">
                                     <img className="media-object " src="/assets/images/xs/avatar5.jpg" alt="" />
-                                        <div className="media-body">
-                                            <span className="name">Wendy Keen</span>
-                                            <span className="message">Java Developer</span>
-                                            <span className="badge badge-outline status"></span>
-                                        </div>
+                                    <div className="media-body">
+                                        <span className="name">Wendy Keen</span>
+                                        <span className="message">Java Developer</span>
+                                        <span className="badge badge-outline status"></span>
+                                    </div>
                                 </div>
                             </a>
                         </li>
@@ -105,11 +105,11 @@ export default function UserPanel() {
                             <a href="javascript:void(0);">
                                 <div className="media">
                                     <img className="media-object " src="/assets/images/xs/avatar2.jpg" alt="" />
-                                        <div className="media-body">
-                                            <span className="name">Matt Rosales</span>
-                                            <span className="message">CEO, Epic Theme</span>
-                                            <span className="badge badge-outline status"></span>
-                                        </div>
+                                    <div className="media-body">
+                                        <span className="name">Matt Rosales</span>
+                                        <span className="message">CEO, Epic Theme</span>
+                                        <span className="badge badge-outline status"></span>
+                                    </div>
                                 </div>
                             </a>
                         </li>

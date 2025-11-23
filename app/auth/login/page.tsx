@@ -11,6 +11,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,8 +64,25 @@ export default function LoginPage() {
                                     value={email} onChange={(e) => setEmail(e.target.value)} />
                             </div>
                             <div className="form-group">
-                                <input type="password" className="form-control" id="exampleInputPassword1" placeholder="Password"
-                                    value={password} onChange={(p) => setPassword(p.target.value)} />
+                                <div className="input-group">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        className="form-control"
+                                        placeholder="Password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+
+                                    <div
+                                        className="input-group-append"
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        <span className="input-group-text">
+                                            <i className={`fa ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                             {error && <div className="alert alert-danger">{error}</div>}
                             <div className="form-group">

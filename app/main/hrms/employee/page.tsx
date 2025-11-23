@@ -124,26 +124,32 @@ export default function EmployeePage() {
     // Lấy vai trò hiện tại từ JWT
     const [currentRole, setCurrentRole] = useState<string>("");
     const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [showModalPassword, setShowModalPassword] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (token) {
             try {
                 const payload = JSON.parse(atob(token.split(".")[1]));
+
                 const role =
                     payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
                 const email =
                     payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] ||
-                    payload["email"] ||
-                    "";
+                    payload["email"] || "";
+                const userId =
+                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
 
                 setCurrentRole(role);
-                setCurrentUserEmail(email); // 🆕 lưu email người đăng nhập
+                setCurrentUserEmail(email);
+                setCurrentUserId(Number(userId)); 
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
         }
     }, []);
+
 
 
     // Các thống kê
@@ -417,10 +423,7 @@ export default function EmployeePage() {
                                                 <th>Employee Type</th>
                                                 <th>Role</th>
                                                 <th>Status</th>
-                                                {/* Chỉ hiện cột Action nếu không phải Employee */}
-                                                {currentRole !== "Employee" && (
-                                                    <th>Action</th>
-                                                )}
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -461,18 +464,16 @@ export default function EmployeePage() {
                                                             );
                                                         })()}
                                                     </td>
-                                                    {currentRole !== "Employee" && (
-                                                        <td>
-                                                            {/*<button type="button" className="btn btn-icon btn-sm" title="View"><i className="fa fa-eye"></i></button>*/}
-                                                            {/* Nút sửa mở modal và truyền dữ liệu nhân viên hiện tại */}
-                                                            <button type="button" className="btn btn-icon btn-sm" title="Edit" data-toggle="modal" data-target="#exampleModal" onClick={() => openEdit(emp)}><i className="fa fa-edit"></i></button>
-                                                            {/* Nút xóa mở modal xác nhận xóa */}
-                                                            {/* Chỉ hiện nút xóa nếu không phải Manager */}
-                                                            {currentRole !== "Manager" && (
-                                                                <button type="button" className="btn btn-icon btn-sm js-sweetalert" title="Delete" data-type="confirm" data-toggle="modal" data-target="#confirmDeleteModal" onClick={() => openDelete(emp.id!)}><i className="fa-solid fa-trash"></i></button>
-                                                            )}
-                                                        </td>
-                                                    )}
+                                                    <td>
+                                                        {/*<button type="button" className="btn btn-icon btn-sm" title="View"><i className="fa fa-eye"></i></button>*/}
+                                                        {/* Nút sửa mở modal và truyền dữ liệu nhân viên hiện tại */}
+                                                        <button type="button" className="btn btn-icon btn-sm" title="Edit" data-toggle="modal" data-target="#exampleModal" onClick={() => openEdit(emp)}><i className="fa fa-edit"></i></button>
+                                                        {/* Nút xóa mở modal xác nhận xóa */}
+                                                        {/* Chỉ hiện nút xóa nếu không phải Manager, Employee */}
+                                                        {currentRole !== "Manager" && currentRole !== "Employee" && (
+                                                            <button type="button" className="btn btn-icon btn-sm js-sweetalert" title="Delete" data-type="confirm" data-toggle="modal" data-target="#confirmDeleteModal" onClick={() => openDelete(emp.id!)}><i className="fa-solid fa-trash"></i></button>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -737,22 +738,32 @@ export default function EmployeePage() {
                                 {/* Password */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
-                                        <input
-                                            type="password"
-                                            className="form-control"
-                                            placeholder={
-                                                modalMode === "add"
-                                                    ? "Set initial password"
-                                                    : currentEmp.email === currentUserEmail
-                                                        ? "Change your password"
-                                                        : "Password (locked)"
-                                            }
-                                            value={currentEmp.password || ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, password: e.target.value })}
-                                            disabled={
-                                                modalMode === "edit" && currentEmp.email !== currentUserEmail
-                                            }
-                                        />
+                                        <div className="input-group">
+                                            <input
+                                                type={showModalPassword ? "text" : "password"}
+                                                className="form-control"
+                                                placeholder={
+                                                    modalMode === "add"
+                                                        ? "Set initial password"
+                                                        : currentEmp.id === currentUserId
+                                                            ? "Change your password"
+                                                            : "Password (locked)"
+                                                }
+                                                value={currentEmp.password || ""}
+                                                onChange={(e) => setCurrentEmp({ ...currentEmp, password: e.target.value })}
+                                                disabled={modalMode === "edit" && currentEmp.id !== currentUserId}
+                                            />
+
+                                            <div
+                                                className="input-group-append"
+                                                style={{ cursor: "pointer" }}
+                                                onClick={() => setShowModalPassword(!showModalPassword)}
+                                            >
+                                                <span className="input-group-text">
+                                                    <i className={`fa ${showModalPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

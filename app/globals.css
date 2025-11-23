@@ -17529,3 +17529,20 @@ body {
 .sidebar_dark.offcanvas-active #header_top {
     background-color: #3d78e3 !important
 }
+.user_div {
+    position: fixed;
+    top: 0;
+    right: -360px;
+    width: 360px;
+    height: 100vh;
+    background: #fff;
+    z-index: 9999;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+    padding: 20px;
+    box-shadow: -3px 0 10px rgba(0,0,0,0.1);
+}
+
+.user_show .user_div {
+    right: 0;
+}

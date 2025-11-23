@@ -21,30 +21,31 @@ export default function DashboardPage() {
     // === Decode JWT user info ===
     useEffect(() => {
         const token = localStorage.getItem("jwt");
-        if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                const role =
-                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "Employee";
-                const empId =
-                    payload["employeeId"] ||
-                    payload["nameid"] ||
-                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-                const nameFromToken =
-                    payload["unique_name"] ||
-                    payload["name"] ||
-                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
-                    payload["given_name"] ||
-                    payload["family_name"] ||
-                    "User";
-                setUser({
-                    id: empId ? Number(empId) : null,
-                    role,
-                    fullName: nameFromToken,
-                });
-            } catch (err) {
-                console.error("Error decoding JWT", err);
-            }
+        if (!token) return;
+
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+
+            const empId =
+                payload["employeeId"] ||
+                payload["nameid"] ||
+                payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
+            const role =
+                payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+                "Employee";
+
+            setUser({
+                id: empId ? Number(empId) : null,
+                role,
+                fullName: null,
+                email: null,
+                phone: null,
+                departmentId: null,
+            });
+
+        } catch (err) {
+            console.error("Error decoding JWT", err);
         }
     }, []);
 
@@ -73,66 +74,21 @@ export default function DashboardPage() {
 
     // === Fetch data + weather ===
     useEffect(() => {
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-        setQuote(randomQuote);
-
-        const fetchWeather = async () => {
+        const loadDashboard = async () => {
             try {
-                if (!navigator.geolocation) {
-                    console.warn("Geolocation not supported by this browser.");
-                    return;
-                }
+                // Random quote
+                setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
 
-                navigator.geolocation.getCurrentPosition(
-                    async (position) => {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
+                // Fetch dashboard data
+                const [emp, dep, types, leave, ot, att] = await Promise.all([
+                    apiFetch("/employee"),
+                    apiFetch("/department"),
+                    apiFetch("/employeetype"),
+                    apiFetch("/leaverequest"),
+                    apiFetch("/overtimerequest"),
+                    apiFetch("/attendance")
+                ]);
 
-                        const res = await fetch(
-                            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
-                        );
-                        const data = await res.json();
-                        if (data.current_weather) {
-                            setWeather({
-                                tempC: data.current_weather.temperature,
-                                condition:
-                                    weatherMap[data.current_weather.weathercode] || "Cloudy ☁️",
-                            });
-                        }
-                    },
-                    (error) => {
-                        console.error("Geolocation error:", error);
-                        fetch(
-                            `https://api.open-meteo.com/v1/forecast?latitude=21.0285&longitude=105.8542&current_weather=true`
-                        )
-                            .then((res) => res.json())
-                            .then((data) => {
-                                if (data.current_weather) {
-                                    setWeather({
-                                        tempC: data.current_weather.temperature,
-                                        condition:
-                                            weatherMap[data.current_weather.weathercode] ||
-                                            "Cloudy ☁️",
-                                    });
-                                }
-                            });
-                    }
-                );
-            } catch (err) {
-                console.error("Weather fetch error:", err);
-            }
-        };
-
-
-        Promise.all([
-            apiFetch("/employee"),
-            apiFetch("/department"),
-            apiFetch("/employeetype"),
-            apiFetch("/leaverequest"),
-            apiFetch("/overtimerequest"),
-            apiFetch("/attendance"),
-        ])
-            .then(([emp, dep, types, leave, ot, att]) => {
                 const employeeList = emp?.emp || emp || [];
                 setEmployees(employeeList);
                 setDepartments(dep?.dep || dep || []);
@@ -141,23 +97,81 @@ export default function DashboardPage() {
                 setOvertime(ot?.ot || ot || []);
                 setAttendance(att?.att || att || []);
 
-                setUser((prev: any) => {
+                // Update user info using employee data
+                setUser(prev => {
                     if (!prev?.id) return prev;
+
                     const me = employeeList.find(
-                        (e: any) => e.id === prev.id || e.employeeId === prev.id
+                        e => e.id === prev.id || e.employeeId === prev.id
                     );
+
                     return {
                         ...prev,
                         fullName: me?.fullName || "Employee",
+                        email: me?.email || null,
+                        phone: me?.phoneNumber || null,
                         departmentId: me?.departmentId || null,
                     };
                 });
-            })
-            .catch((err) => console.error("Load failed:", err))
-            .finally(() => {
-                setLoading(false);
+
+                // === WEATHER FETCH ===
+                const fetchWeather = async () => {
+                    try {
+                        if (!navigator.geolocation) {
+                            console.warn("Geolocation not supported.");
+                            return;
+                        }
+
+                        navigator.geolocation.getCurrentPosition(
+                            async (pos) => {
+                                const lat = pos.coords.latitude;
+                                const lon = pos.coords.longitude;
+
+                                const res = await fetch(
+                                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+                                );
+                                const data = await res.json();
+
+                                if (data.current_weather) {
+                                    setWeather({
+                                        tempC: data.current_weather.temperature,
+                                        condition:
+                                            weatherMap[data.current_weather.weathercode] ||
+                                            "Cloudy ☁️",
+                                    });
+                                }
+                            },
+                            async () => {
+                                const res = await fetch(
+                                    `https://api.open-meteo.com/v1/forecast?latitude=21.0285&longitude=105.8542&current_weather=true`
+                                );
+                                const data = await res.json();
+
+                                if (data.current_weather) {
+                                    setWeather({
+                                        tempC: data.current_weather.temperature,
+                                        condition:
+                                            weatherMap[data.current_weather.weathercode] ||
+                                            "Cloudy ☁️",
+                                    });
+                                }
+                            }
+                        );
+                    } catch (err) {
+                        console.error("Weather fetch error:", err);
+                    }
+                };
+
                 fetchWeather();
-            });
+
+            } catch (err) {
+                console.error("Dashboard load failed:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadDashboard();
     }, []);
 
     if (loading) return <div className="text-center p-5 text-muted">Loading dashboard...</div>;

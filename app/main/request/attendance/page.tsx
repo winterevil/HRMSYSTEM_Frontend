@@ -57,19 +57,19 @@ export default function AttendancePage() {
 
                 setCurrentRole(role);
                 setCurrentUserEmail(email);
-                if (empId) setCurrentUserId(Number(empId)); // ✅ lưu ID
+                if (empId) setCurrentUserId(Number(empId)); 
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
         }
     }, []);
 
-    // === 🧮 Tính thống kê dữ liệu tháng hiện tại ===
+    // === Tính thống kê dữ liệu tháng hiện tại ===
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // 🔹 Hàm tính thống kê cho 1 tháng cụ thể
+    // Hàm tính thống kê cho 1 tháng cụ thể
     function calcStats(data: AttendanceDto[] = [], year: number, month: number) {
         const filtered = data.filter(a => {
             if (!a.checkinDate) return false;
@@ -82,11 +82,11 @@ export default function AttendancePage() {
             return { total: 0, attendanceRate: 0, avgHours: 0 };
         }
 
-        // 🔹 Danh sách nhân viên duy nhất trong tháng đó
+        // Danh sách nhân viên duy nhất trong tháng đó
         const employees = [...new Set(filtered.map(a => a.employeeId))];
-        const employeeCount = employees.length || 1; // tránh chia 0
+        const employeeCount = employees.length || 1; 
 
-        // 🔹 Số ngày làm việc trong tháng (trừ T7, CN)
+        // Số ngày làm việc trong tháng (trừ T7, CN)
         const workingDays = Array.from({ length: 31 }, (_, i) => {
             const d = new Date(year, month, i + 1);
             return d.getMonth() === month && d.getDay() !== 0 && d.getDay() !== 6;
@@ -133,19 +133,19 @@ export default function AttendancePage() {
         };
     }
 
-    // 🔹 Tính thống kê cho tháng hiện tại và tháng trước
+    // Tính thống kê cho tháng hiện tại và tháng trước
     const currentStats = calcStats(attendances, currentYear, currentMonth);
     const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
     const prevStats = calcStats(attendances, prevYear, prevMonth);
 
-    // 🔹 Hàm so sánh %
+    // Hàm so sánh %
     function comparePercent(current: number, previous: number) {
         if (!isFinite(previous) || previous === 0) return current > 0 ? 100 : 0;
         return ((current - previous) / previous) * 100;
     }
 
-    // 🔹 Tính phần trăm thay đổi
+    // Tính phần trăm thay đổi
     const totalChange = comparePercent(currentStats.total, prevStats.total);
     const rateChange = comparePercent(currentStats.attendanceRate, prevStats.attendanceRate);
     const avgChange = comparePercent(currentStats.avgHours, prevStats.avgHours);
