@@ -1,26 +1,332 @@
-﻿import React from 'react';
+﻿'use client';
+import React, { useEffect, useState, useRef } from "react";
+import { apiFetch } from "@/app/utils/apiClient";
 
 export default function UserPanel() {
+    const [user, setUser] = useState<any>(null);
+    const [timeline, setTimeline] = useState<any[]>([]);
+    const [profile, setProfile] = useState<any>({});
+    const [roles, setRoles] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
+    const [statuses] = useState([
+        { value: 0, label: "Active" },
+        { value: 1, label: "OnLeave" },
+        { value: 2, label: "Resigned" },
+        { value: 3, label: "Retired" },
+        { value: 4, label: "Probation" },
+    ]);
+    const statusTextColors: any = {
+        0: "text-success",     // Active
+        1: "text-warning",     // OnLeave
+        2: "text-danger",      // Resigned
+        3: "text-secondary",   // Retired
+        4: "text-info",        // Probation
+    };
+    const currentStatus = statuses.find(s => s.value === profile?.status);
+
+    const [stats, setStats] = useState({
+        totalHours: 0,
+        totalLeave: 0,
+        totalOT: 0
+    });
+
+    const [rating, setRating] = useState("");
+    const latestTimeline = timeline.slice(0, 5);
+
+    useEffect(() => {
+        const token = localStorage.getItem("jwt");
+        if (!token) return;
+
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+
+            const empId =
+                payload["employeeId"] ||
+                payload["nameid"] ||
+                payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
+            const role =
+                payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+                "Employee";
+
+            setUser({
+                id: empId ? Number(empId) : null,
+                role,
+                fullName: null,
+            });
+
+        } catch (err) {
+            console.error("Error decoding JWT", err);
+        }
+    }, []);
+    const isHR = user?.role === "HR";
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        apiFetch("/employee")
+            .then((res) => {
+                const list = res?.emp || res || [];
+
+                const me = list.find(
+                    (e: any) =>
+                        e.id === user.id ||
+                        e.employeeId === user.id
+                );
+
+                if (me) {
+                    setUser((prev: any) => ({
+                        ...prev,
+                        fullName: me.fullName || prev.fullName,
+                        email: me.email,
+                        phone: me.phoneNumber
+                    }));
+                }
+            })
+            .catch((err) => console.error("Employee list fetch error:", err));
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const loadActivity = async () => {
+            try {
+                const [
+                    attendance,
+                    leaves,
+                    overtime,
+                    jobposts,
+                    requirements,
+                    positions
+                ] = await Promise.all([
+                    apiFetch("/attendance"),
+                    apiFetch("/leaverequest"),
+                    apiFetch("/overtimerequest"),
+                    apiFetch("/jobpost"),
+                    apiFetch("/recruitmentrequirement"),
+                    apiFetch("/recruitmentposition")
+                ]);
+
+                const activities: any[] = [];
+
+                //1. Attendance
+                attendance?.forEach((a: any) => {
+                    if (a.employeeId === user.id) {
+                        activities.push({
+                            type: "attendance",
+                            icon: "fa fa-check-circle text-success",
+                            title: "Checked in",
+                            time: a.checkinTime,
+                            content: `Checked in at ${new Date(a.checkinTime).toLocaleTimeString()}`
+                        });
+                    }
+                });
+
+                //2. Leave Request
+                leaves?.forEach((l: any) => {
+                    if (l.employeeId === user.id) {
+                        const status =
+                            l.status === 0 ? "Pending" :
+                                l.status === 1 ? "Approved" :
+                                    l.status === 2 ? "Rejected" :
+                                        "Cancelled";
+
+                        activities.push({
+                            type: "leave",
+                            icon: "fa fa-calendar-minus text-warning",
+                            title: `Leave request (${status})`,
+                            time: l.startTime,
+                            content: `Leave: ${new Date(l.startTime).toLocaleString()} → ${new Date(l.endTime).toLocaleString()}
+                            Reason: ${l.reason}`
+                        });
+                    }
+                });
+
+                //3. Overtime Request
+                overtime?.forEach((o: any) => {
+                    if (o.employeeId === user.id) {
+                        const status =
+                            o.status === 0 ? "Pending" :
+                                o.status === 1 ? "Approved" :
+                                    o.status === 2 ? "Rejected" :
+                                        "Cancelled";
+
+                        activities.push({
+                            type: "overtime",
+                            icon: "fa fa-clock text-primary",
+                            title: `Overtime request (${status})`,
+                            time: o.startTime,
+                            content: `OT: ${new Date(o.startTime).toLocaleString()} → ${new Date(o.endTime).toLocaleString()}
+                            Reason: ${o.reason}`
+                        });
+                    }
+                });
+
+                //4. Job Posts
+                jobposts?.forEach((j: any) => {
+                    if (j.postedBy?.toLowerCase() === user.fullName?.toLowerCase()) {
+                        activities.push({
+                            type: "jobpost",
+                            icon: "fa fa-briefcase text-info",
+                            title: "Created job post",
+                            time: j.createdAt,
+                            content: j.title
+                        });
+                    }
+                });
+
+                //5. Recruitment Requirements
+                requirements?.forEach((r: any) => {
+                    if (
+                        r.employeeName?.toLowerCase() === user.fullName?.toLowerCase() ||
+                        r.createdBy === user.id
+                    ) {
+                        const status =
+                            r.status === 0 ? "Pending" :
+                                r.status === 1 ? "Approved" :
+                                    r.status === 2 ? "Rejected" :
+                                        "Completed";
+
+                        activities.push({
+                            type: "requirement",
+                            icon: "fa fa-file-alt text-secondary",
+                            title: `Recruitment Requirement (${status})`,
+                            time: r.createdAt,
+                            content: r.requirement || r.positionName
+                        });
+                    }
+                });
+
+                //6. Recruitment Positions
+                positions?.forEach((p: any) => {
+                    if (p.createdBy === user.id) {
+                        activities.push({
+                            type: "position",
+                            icon: "fa fa-users text-purple",
+                            title: "Created new recruitment position",
+                            time: p.createdAt,
+                            content: `${p.positionName} (${p.departmentName})`
+                        });
+                    }
+                });
+                // === Statistics ===
+
+                // 1. Total Hours Worked
+                let totalHoursWorked = 0;
+                attendance?.forEach(a => {
+                    if (a.employeeId === user.id && a.checkinTime && a.checkoutTime) {
+                        const start = new Date(a.checkinTime).getTime();
+                        const end = new Date(a.checkoutTime).getTime();
+                        totalHoursWorked += (end - start) / (1000 * 60 * 60);
+                    }
+                });
+
+                // 2. Total Leave Requests
+                const totalLeaveRequests = leaves?.filter(l => l.employeeId === user.id).length || 0;
+
+                // 3. Total OT Requests
+                const totalOTRequests = overtime?.filter(o => o.employeeId === user.id).length || 0;
+
+                // Update stats
+                setStats({
+                    totalHours: totalHoursWorked,
+                    totalLeave: totalLeaveRequests,
+                    totalOT: totalOTRequests
+                });
+
+                // === Employee Rating ===
+                let employeeRating = "";
+
+                if (totalHoursWorked > 160 && totalLeaveRequests <= 1) {
+                    employeeRating = "Excellent";
+                }
+                else if (totalHoursWorked > 150 && totalLeaveRequests <= 2) {
+                    employeeRating = "Good";
+                }
+                else if (totalHoursWorked >= 100) {
+                    employeeRating = "Average";
+                }
+                else {
+                    employeeRating = "Bad";
+                }
+
+                setRating(employeeRating);
+
+                activities.sort(
+                    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+                );
+
+                setTimeline(activities);
+            } catch (err) {
+                console.error("Timeline load error:", err);
+            }
+        };
+
+        loadActivity();
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const loadProfile = async () => {
+            try {
+                const [emps, rolesData, deps, types] = await Promise.all([
+                    apiFetch("/employee"),
+                    apiFetch("/role"),
+                    apiFetch("/department"),
+                    apiFetch("/employeetype"),
+                ]);
+
+                const me = emps.find((e: any) => e.id === user.id);
+                if (me) {
+                    const userRoleName = me.roles?.[0]?.roleName || me.role || me.roleName;
+
+                    setProfile({
+                        ...me,
+                        roleName: userRoleName,
+                        roleId: rolesData.find(r => r.name === userRoleName)?.id || null
+                    });
+                }
+
+
+                setRoles(rolesData);
+                setDepartments(deps);
+                setEmployeeTypes(types);
+            } catch (err) {
+                console.error("Profile load error:", err);
+            }
+        };
+
+        loadProfile();
+    }, [user?.id]);
+
+
     return (
         <div className="user_div">
             <h5 className="brand-name mb-4">
-                Epic HR
-                <a href="javascript:void(0)" className="user_btn">
+                My HRM
+                <a href="#"
+                    onClick={(e) => e.preventDefault()} className="user_btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10 8v-2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-2" /><path d="M15 12h-12l3 -3" /><path d="M6 15l-3 -3" /></svg>
                 </a>
             </h5>
             <div className="card">
                 <div className="card-body">
                     <div className="media">
-                        <img className="avatar avatar-xl mr-3" src="/assets/images/sm/avatar1.jpg" alt="avatar" />
+                        <div className="avatar avatar-xl mr-3"
+                            style={{
+                                backgroundColor: "#4e73df",
+                                color: "white",
+                            }}>
+                            {(user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U")}
+                        </div>
                         <div className="media-body">
-                            <h5 className="m-0">Sara Hopkins</h5>
-                            <p className="text-muted mb-0">Webdeveloper</p>
+                            <h6 className="m-0">{user?.fullName}</h6>
+                            <p className="text-muted mb-0">{profile?.departmentName}</p>
                             <ul className="social-links list-inline mb-0 mt-2">
-                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Facebook"><i className="fa fa-facebook"></i></a></li>
-                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Twitter"><i className="fa fa-twitter"></i></a></li>
-                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="1234567890"><i className="fa fa-phone"></i></a></li>
-                                <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="@skypename"><i className="fa fa-skype"></i></a></li>
+                                <li className="list-inline-item"><a href={`mailto:${user?.email || ""}`} title="Email" data-toggle="tooltip"><i className="fa fa-envelope"></i></a></li>
+                                <li className="list-inline-item"><a href={`tel:${user?.phone || ""}`} title="Phone" data-toggle="tooltip"><i className="fa fa-phone"></i></a></li>
                             </ul>
                         </div>
                     </div>
@@ -29,128 +335,84 @@ export default function UserPanel() {
             <div className="card">
                 <div className="card-header border-bottom">
                     <h3 className="card-title">Statistics</h3>
-                    <div className="card-options">
-                        <a href="#" className="card-options-collapse" data-toggle="card-collapse"><i className="fe fe-chevron-up"></i></a>
-                        <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fe fe-x"></i></a>
-                    </div>
                 </div>
                 <div className="card-body">
                     <div className="text-center">
                         <div className="row">
                             <div className="col-6 pb-3">
-                                <label className="mb-0">Balance</label>
-                                <h4 className="font-30 font-weight-bold">$545</h4>
+                                <h4 className="font-30 font-weight-bold">{profile?.roleName}</h4>
                             </div>
                             <div className="col-6 pb-3">
-                                <label className="mb-0">Growth</label>
-                                <h4 className="font-30 font-weight-bold">27%</h4>
+                                <h4 className={`font-20 font-weight-bold ${statusTextColors[profile?.status] || ""}`}>
+                                    {currentStatus?.label || "Unknown"}
+                                </h4>
                             </div>
                         </div>
                     </div>
                     <div className="form-group">
-                        <label className="d-block">Total Income<span className="float-right">77%</span></label>
-                        <div className="progress progress-xs">
-                            <div className="progress-bar bg-blue" role="progressbar" aria-valuenow={77} aria-valuemin={0} aria-valuemax={100} style={{ width: "77%" }}></div>
-                        </div>
+                        <label className="d-block">Total Hours Worked<span className="float-right">{stats.totalHours.toFixed(1)}</span></label>
                     </div>
                     <div className="form-group">
-                        <label className="d-block">Total Expenses <span className="float-right">50%</span></label>
-                        <div className="progress progress-xs">
-                            <div className="progress-bar bg-danger" role="progressbar" aria-valuenow={50} aria-valuemin={0} aria-valuemax={100} style={{ width: "50%" }}></div>
-                        </div>
+                        <label className="d-block">Leave Requests <span className="float-right">{stats.totalLeave}</span></label>
                     </div>
                     <div className="form-group mb-0">
-                        <label className="d-block">Gross Profit <span className="float-right">23%</span></label>
-                        <div className="progress progress-xs">
-                            <div className="progress-bar bg-green" role="progressbar" aria-valuenow={23} aria-valuemin={0} aria-valuemax={100} style={{ width: "23%" }}></div>
-                        </div>
+                        <label className="d-block">Overtime Requests <span className="float-right">{stats.totalOT}</span></label>
                     </div>
                 </div>
             </div>
+
             <div className="card">
                 <div className="card-header border-bottom">
-                    <h3 className="card-title">Friends</h3>
-                    <div className="card-options">
-                        <a href="#" className="card-options-collapse" data-toggle="card-collapse"><i className="fe fe-chevron-up"></i></a>
-                        <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fe fe-x"></i></a>
-                    </div>
+                    <h3 className="card-title">Recent Activity</h3>
                 </div>
-                <div className="card-body">
-                    <ul className="right_chat list-unstyled">
-                        <li className="online">
-                            <a href="javascript:void(0);">
-                                <div className="media">
-                                    <img className="media-object " src="/assets/images/xs/avatar4.jpg" alt="" />
-                                    <div className="media-body">
-                                        <span className="name">Donald Gardner</span>
-                                        <span className="message">Designer, Blogger</span>
-                                        <span className="badge badge-outline status"></span>
+
+                <div className="card-body p-3">
+
+                    {latestTimeline.length === 0 ? (
+                        <p className="text-muted text-center small">No recent activity</p>
+                    ) : (
+                        latestTimeline.map((item, index) => (
+                            <div key={index} className="d-flex align-items-start mb-3">
+
+                                {/* Icon */}
+                                <div
+                                    className="rounded-circle d-flex justify-content-center align-items-center"
+                                    style={{
+                                        width: "32px",
+                                        height: "32px",
+                                        background: "#f1f5f9",
+                                        fontSize: "14px",
+                                    }}
+                                >
+                                    <i className={item.icon}></i>
+                                </div>
+
+                                {/* Content */}
+                                <div className="ml-3" style={{ width: "calc(100% - 50px)" }}>
+                                    <div className="font-weight-bold" style={{ fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {item.title}
+                                    </div>
+
+                                    <div className="text-muted" style={{ fontSize: "11px" }}>
+                                        {new Date(item.time).toLocaleDateString("en-CA")}
+                                        {" "}
+                                        {new Date(item.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </div>
+
+                                    <div className="text-muted" style={{
+                                        fontSize: "12px",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis"
+                                    }}>
+                                        {item.content}
                                     </div>
                                 </div>
-                            </a>
-                        </li>
-                        <li className="online">
-                            <a href="javascript:void(0);">
-                                <div className="media">
-                                    <img className="media-object " src="/assets/images/xs/avatar5.jpg" alt="" />
-                                    <div className="media-body">
-                                        <span className="name">Wendy Keen</span>
-                                        <span className="message">Java Developer</span>
-                                        <span className="badge badge-outline status"></span>
-                                    </div>
-                                </div>
-                            </a>
-                        </li>
-                        <li className="offline">
-                            <a href="javascript:void(0);">
-                                <div className="media">
-                                    <img className="media-object " src="/assets/images/xs/avatar2.jpg" alt="" />
-                                    <div className="media-body">
-                                        <span className="name">Matt Rosales</span>
-                                        <span className="message">CEO, Epic Theme</span>
-                                        <span className="badge badge-outline status"></span>
-                                    </div>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
+
+                            </div>
+                        ))
+                    )}
                 </div>
-            </div>
-            <div className="card b-none">
-                <ul className="list-group">
-                    <li className="list-group-item d-flex">
-                        <div className="box-icon sm rounded bg-blue"><i className="fa fa-credit-card"></i> </div>
-                        <div className="ml-3">
-                            <div>+$29 New sale</div>
-                            <a href="javascript:void(0)">Admin Template</a>
-                            <div className="text-muted font-12">5 min ago</div>
-                        </div>
-                    </li>
-                    <li className="list-group-item d-flex">
-                        <div className="box-icon sm rounded bg-pink"><i className="fa fa-upload"></i> </div>
-                        <div className="ml-3">
-                            <div>Project Update</div>
-                            <a href="javascript:void(0)">New HTML page</a>
-                            <div className="text-muted font-12">10 min ago</div>
-                        </div>
-                    </li>
-                    <li className="list-group-item d-flex">
-                        <div className="box-icon sm rounded bg-teal"><i className="fa fa-file-word-o"></i> </div>
-                        <div className="ml-3">
-                            <div>You edited the file</div>
-                            <a href="javascript:void(0)">reposrt.doc</a>
-                            <div className="text-muted font-12">11 min ago</div>
-                        </div>
-                    </li>
-                    <li className="list-group-item d-flex">
-                        <div className="box-icon sm rounded bg-cyan"><i className="fa fa-user"></i> </div>
-                        <div className="ml-3">
-                            <div>New user</div>
-                            <a href="javascript:void(0)">Puffin web - view</a>
-                            <div className="text-muted font-12">17 min ago</div>
-                        </div>
-                    </li>
-                </ul>
             </div>
         </div>
     );

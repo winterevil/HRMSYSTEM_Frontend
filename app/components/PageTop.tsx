@@ -88,16 +88,9 @@ export default function PageTop() {
                                                 <small>Your connection is not private</small>
                                             </div>
                                         </li>
-                                        <li>
-                                            <div className="feeds-left"><i className="fa fa-shopping-cart"></i></div>
-                                            <div className="feeds-body">
-                                                <h4 className="title">7 New Orders <small className="float-right text-muted">11:35</small></h4>
-                                                <small>You received a new oder from Tina.</small>
-                                            </div>
-                                        </li>
                                     </ul>
                                     <div className="dropdown-divider"></div>
-                                    <a href="javascript:void(0)" className="dropdown-item text-center text-muted-dark readall">Mark all as read</a>
+                                    <a href="#" className="dropdown-item text-center text-muted-dark readall">Mark all as read</a>
                                 </div>
                             </div>
                             <div className="dropdown d-flex">
@@ -106,10 +99,10 @@ export default function PageTop() {
                                 </a>
                                 <div className="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
                                     <a className="dropdown-item" href="/main/account/profile"><i className="dropdown-icon fa-solid fa-user"></i> Profile</a>
-                                    <a className="dropdown-item" href="app-setting.html"><i className="dropdown-icon fa-solid fa-gear"></i> Settings</a>
+                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-gear"></i> Settings</a>
                                     <div className="dropdown-divider"></div>
-                                    <a className="dropdown-item" href="javascript:void(0)"><i className="dropdown-icon fa-solid fa-circle-question"></i> Need help?</a>
-                                    <a className="dropdown-item" href="javascript:void(0)"><i className="dropdown-icon fa-solid fa-lock-open"></i> Forgot Password</a>
+                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-circle-question"></i> Need help?</a>
+                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-lock-open"></i> Forgot Password</a>
                                     <a className="dropdown-item" href="#" onClick={handleLogout}><i className="dropdown-icon fa-solid fa-right-from-bracket"></i> Sign out</a>
                                 </div>
                             </div>
