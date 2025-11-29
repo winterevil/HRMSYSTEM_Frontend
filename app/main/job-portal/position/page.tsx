@@ -220,7 +220,10 @@ export default function PositionPage() {
                                         <div className="input-group">
                                             <input type="text" className="form-control" placeholder="Enter name to search..."
                                                 value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)} />
+                                                onChange={(e) => {
+                                                    setSearchTerm(e.target.value);
+                                                    setCurrentPage(1);
+                                                }} />
                                         </div>
                                     </div>
 

@@ -25,6 +25,7 @@ export default function OvertimeRequest() {
     const [searchTerm, setSearchTerm] = useState("");
 
     const [currentRole, setCurrentRole] = useState<string>("");
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
     // ---- Decode JWT ----
     useEffect(() => {
@@ -33,13 +34,25 @@ export default function OvertimeRequest() {
 
         try {
             const payload = JSON.parse(atob(token.split(".")[1]));
+
             const role =
-                payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ?? "";
+                payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
+
+            const empId =
+                payload["employeeId"] ||
+                payload["nameid"] ||
+                payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
             setCurrentRole(role);
-        } catch (e) {
-            console.error("JWT decode failed", e);
+            setCurrentUserId(empId ? Number(empId) : null);
+
+            console.log("Decoded in LeaveRequest:", { empId, role });
+
+        } catch (err) {
+            console.error("Error decoding JWT", err);
         }
     }, []);
+
 
     const statuses = [
         { value: 0, label: "Pending", className: "badge badge-warning" },
@@ -287,7 +300,10 @@ export default function OvertimeRequest() {
                                 className="form-control form-control-sm"
                                 placeholder="Enter name to search..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                             />
                         </div>
                     </div>
@@ -326,14 +342,16 @@ export default function OvertimeRequest() {
 
                                             {currentRole !== "Admin" && (
                                                 <td>
-                                                    <button
-                                                        className="btn btn-icon"
-                                                        data-toggle="modal"
-                                                        data-target="#exampleModal"
-                                                        onClick={() => openEdit(r)}
-                                                    >
-                                                        <i className="fa-solid fa-edit"></i>
-                                                    </button>
+                                                    {r.employeeId === currentUserId && (
+                                                        <button
+                                                            className="btn btn-icon"
+                                                            data-toggle="modal"
+                                                            data-target="#exampleModal"
+                                                            onClick={() => openEdit(r)}
+                                                        >
+                                                            <i className="fa-solid fa-edit"></i>
+                                                        </button>
+                                                    )}
 
                                                     {currentRole !== "Employee" && (
                                                         <button

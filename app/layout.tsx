@@ -1,4 +1,4 @@
-import "./globals.css";
+﻿import "./globals.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "../public/assets/plugins/bootstrap/css/bootstrap.min.css";
 import "../public/assets/plugins/charts-c3/c3.min.css";
@@ -22,14 +22,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body className="font-jakarta theme1">
                 {children}
 
-                {/* JS vendor */}
+                {/* jQuery MUST LOAD FIRST */}
+                <Script src="https://code.jquery.com/jquery-3.6.0.min.js" strategy="beforeInteractive" />
+
+                {/* Vendor Bundle */}
                 <Script src="/assets/bundles/lib.vendor.bundle.js" strategy="beforeInteractive" />
+
+                {/* Charts, plugins */}
                 <Script src="/assets/bundles/apexcharts.bundle.js" strategy="afterInteractive" />
                 <Script src="/assets/bundles/counterup.bundle.js" strategy="afterInteractive" />
                 <Script src="/assets/bundles/knobjs.bundle.js" strategy="afterInteractive" />
                 <Script src="/assets/bundles/c3.bundle.js" strategy="afterInteractive" />
 
-                {/* Core + custom page scripts */}
+                {/* Core Scripts */}
                 <Script src="/assets/js/core.js" strategy="afterInteractive" />
                 <Script src="/assets/js/page/index.js" strategy="afterInteractive" />
                 <Script src="/assets/js/page/job-index.js" strategy="afterInteractive" />

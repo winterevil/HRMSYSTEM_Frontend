@@ -343,7 +343,10 @@ export default function AttendancePage() {
                                         <div className="input-group">
                                             <input type="text" className="form-control form-control-sm" placeholder="Enter name to search..." name="s"
                                                 value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)} />
+                                                onChange={(e) => {
+                                                    setSearchTerm(e.target.value);
+                                                    setCurrentPage(1);
+                                                }} />
                                         </div>
                                     </form>
                                 </div>

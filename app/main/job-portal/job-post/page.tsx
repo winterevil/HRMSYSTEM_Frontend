@@ -205,7 +205,10 @@ export default function JobPostPage() {
                                 className="form-control form-control-sm"
                                 placeholder="Search title..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                             />
                         </div>
                     </div>

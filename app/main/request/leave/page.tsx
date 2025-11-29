@@ -37,6 +37,8 @@ export default function LeaveRequest() {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
     // ======================= GET ROLE =======================
     useEffect(() => {
         const token = localStorage.getItem("jwt");
@@ -44,9 +46,20 @@ export default function LeaveRequest() {
 
         try {
             const payload = JSON.parse(atob(token.split(".")[1]));
+
             const role =
                 payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
+
+            const empId =
+                payload["employeeId"] ||
+                payload["nameid"] ||
+                payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
             setCurrentRole(role);
+            setCurrentUserId(empId ? Number(empId) : null);
+
+            console.log("Decoded in LeaveRequest:", { empId, role });
+
         } catch (err) {
             console.error("Error decoding JWT", err);
         }
@@ -96,8 +109,7 @@ export default function LeaveRequest() {
 
     function toDateInputValue(dateString?: string): string {
         if (!dateString) return "";
-        const d = new Date(dateString);
-        return d.toISOString().split("T")[0];
+        return dateString.split("T")[0];
     }
 
     // ======================= STATS CALC =======================
@@ -311,7 +323,10 @@ export default function LeaveRequest() {
                                         className="form-control"
                                         placeholder="Search name..."
                                         value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -349,14 +364,16 @@ export default function LeaveRequest() {
 
                                                     <td>
                                                         {/* EDIT */}
-                                                        <button
-                                                            className="btn btn-sm btn-icon"
-                                                            data-toggle="modal"
-                                                            data-target="#exampleModal"
-                                                            onClick={() => openEdit(r)}
-                                                        >
-                                                            <i className="fa-solid fa-edit"></i>
-                                                        </button>
+                                                        {r.employeeId === currentUserId && (
+                                                            <button
+                                                                className="btn btn-sm btn-icon"
+                                                                data-toggle="modal"
+                                                                data-target="#exampleModal"
+                                                                onClick={() => openEdit(r)}
+                                                            >
+                                                                <i className="fa-solid fa-edit"></i>
+                                                            </button>
+                                                        )}
 
                                                         {/* PROCESS (Only HR + Manager) */}
                                                         {currentRole !== "Employee" && (

@@ -245,7 +245,10 @@ export default function RecruitmentPage() {
                                     className="form-control"
                                     placeholder="Search requester..."
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                 />
                             </div>
 
