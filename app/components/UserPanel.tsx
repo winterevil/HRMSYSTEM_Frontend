@@ -214,7 +214,7 @@ export default function UserPanel() {
 
                 // 1. Total Hours Worked
                 let totalHoursWorked = 0;
-                attendance?.forEach(a => {
+                attendance?.forEach((a: any) => {
                     if (a.employeeId === user.id && a.checkinTime && a.checkoutTime) {
                         const start = new Date(a.checkinTime).getTime();
                         const end = new Date(a.checkoutTime).getTime();

@@ -1,3 +1,4 @@
+'use client';
 import { sidebarData, SidebarItemType } from './SidebarData';
 import SidebarItem from './SidebarItem';
 
