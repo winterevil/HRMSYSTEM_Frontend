@@ -5,6 +5,12 @@ import { ToastContainer, toast } from "react-toastify";
 import { Pie, Bar } from "react-chartjs-2";
 import "chart.js/auto";
 import "react-toastify/dist/ReactToastify.css";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Grid } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/grid";
+import "swiper/css/navigation";
+import truncate from "html-truncate";
 
 interface JobPost {
     id?: number;
@@ -227,9 +233,7 @@ export default function JobDashboardPage() {
             })
             : jobPosts;
 
-    /* =======================
-       NEW CALENDAR COMPONENT
-    ======================= */
+    //NEW CALENDAR COMPONENT
     const Calendar = () => {
         const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -327,9 +331,6 @@ export default function JobDashboardPage() {
         );
     };
 
-    /* ========================
-         RETURN HTML LAYOUT
-    ======================== */
     return (
         <div style={{ background: "#f9fafb", minHeight: "100vh" }}>
             <div className="container-fluid py-4">
@@ -357,9 +358,7 @@ export default function JobDashboardPage() {
                     )}
                 </div>
 
-                {/* ========================
-                     DASHBOARD STATISTICS
-                ======================== */}
+                {/*DASHBOARD STATISTICS*/}
                 <div className="row mb-4">
                     <StatBox
                         title="Total Job Posts"
@@ -392,9 +391,7 @@ export default function JobDashboardPage() {
                     )}
                 </div>
 
-                {/* ========================
-                     JOB POSTS LIST + DETAIL
-                ======================== */}
+                {/*JOB POSTS LIST + DETAIL*/}
                 <div className="row g-4">
                     <div className={selectedJob ? "col-lg-7" : "col-lg-12"}>
                         <div className="card border-0 shadow-sm">
@@ -411,39 +408,48 @@ export default function JobDashboardPage() {
                                 {filteredJobPosts.length === 0 ? (
                                     <p className="text-muted text-center">No job posts available.</p>
                                 ) : (
-                                    <div className="list-group">
+                                    <Swiper
+                                        modules={[Grid, Navigation]}
+                                        navigation
+                                        spaceBetween={12}              
+                                        direction="horizontal"
+                                        slidesPerView={1}
+                                        slidesPerGroup={1}
+                                        grid={{ rows: 3, fill: "row" }}
+                                        style={{ height: "50vh", padding: "0 30px" }}   
+                                        className="custom-swiper"
+                                    >
                                         {filteredJobPosts.map((job) => (
-                                            <div
-                                                key={job.id}
-                                                onClick={() => setSelectedJob(job)}
-                                                className={`list-group-item list-group-item-action border-0 border-bottom py-3 ${selectedJob?.id === job.id ? "bg-light" : ""
-                                                    }`}
-                                                style={{ cursor: "pointer" }}
-                                            >
-                                                <div className="d-flex justify-content-between align-items-center">
-                                                    <h6 className="fw-semibold text-primary mb-0">
-                                                        {job.title}{" "}
-                                                        <span className="ms-2">
-                                                            {getPostStatus(job.status)}
-                                                        </span>
+                                            <SwiperSlide key={job.id}>
+                                                <div
+                                                    onClick={() => setSelectedJob(job)}
+                                                    className={`border rounded p-2 shadow-sm job-card ${selectedJob?.id === job.id ? "border-primary" : ""
+                                                        }`}
+                                                    style={{ cursor: "pointer", marginBottom: "6px" }}  
+                                                >
+                                                    <h6 className="fw-bold text-primary mb-1">
+                                                        {job.title} {getPostStatus(job.status)}
                                                     </h6>
-                                                    <small className="text-muted">
-                                                        {job.createdAt
-                                                            ? new Date(job.createdAt).toLocaleDateString("en-CA")
-                                                            : ""}
+
+                                                    <div
+                                                        className="text-muted mb-1"
+                                                        style={{ fontSize: "0.9rem" }}
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: selectedJob
+                                                                ? truncate(job.requirement ?? "", 80, { ellipsis: "..." }) 
+                                                                : truncate(job.requirement ?? "", 200, { ellipsis: "..." })
+                                                        }}
+                                                    />
+
+
+                                                    <small className="text-secondary">
+                                                        <i className="fa-solid fa-user me-1"></i>
+                                                        {job.postedBy}
                                                     </small>
                                                 </div>
-
-                                                <p className="text-muted mb-1" style={{ fontSize: "0.9rem" }}>
-                                                    {job.requirement}
-                                                </p>
-
-                                                <small className="text-secondary">
-                                                    <i className="fa-solid fa-user me-1"></i>{job.postedBy}
-                                                </small>
-                                            </div>
+                                            </SwiperSlide>
                                         ))}
-                                    </div>
+                                    </Swiper>
                                 )}
                             </div>
                         </div>
@@ -493,9 +499,6 @@ export default function JobDashboardPage() {
                     )}
                 </div>
 
-                {/* =======================
-                    ANALYTICS (HR + Manager)
-                ======================= */}
                 {(isHR || isManager) && (
                     <div className="row g-4 mt-4 mb-4">
                         <div className="col-lg-6">
@@ -545,9 +548,6 @@ export default function JobDashboardPage() {
                     </div>
                 )}
 
-                {/* =======================
-                     CALENDAR + HR METRICS
-                ======================= */}
                 <div className="row g-4 mt-4 mb-5">
                     {/* CALENDAR HERE */}
                     <div className="col-lg-6">
@@ -624,9 +624,7 @@ export default function JobDashboardPage() {
                     </div>
                 </div>
 
-                {/* =======================
-                         RECENT ACTIVITIES
-                ======================= */}
+                {/*RECENT ACTIVITIES*/}
                 <div className="card border-0 shadow-sm mb-5">
                     <div className="card-header bg-white border-bottom">
                         <h6 className="fw-semibold text-dark mb-0">Recent Activities</h6>
@@ -636,7 +634,7 @@ export default function JobDashboardPage() {
                         <ul className="list-unstyled mb-0">
                             {recentActivities.map((a, idx) => (
                                 <li key={idx} className="mb-2 d-flex align-items-center text-secondary">
-                                    
+
                                     {a}
                                 </li>
                             ))}

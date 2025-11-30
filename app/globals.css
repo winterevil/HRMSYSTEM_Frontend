@@ -8364,7 +8364,7 @@ a:hover {
     padding: 10px;
     color: #fff;
     border-radius: 35px;
-    display: inline-block ;
+    display: inline-block;
 }
 
 #header_top .nav-link {
@@ -15877,17 +15877,17 @@ svg {
     display: flex;
 }*/
 
-    .page-loader-wrapper .loader {
-        position: relative;
-        top: calc(40% - 30px);
-        justify-content: center;
-        width: 100%
-    }
+.page-loader-wrapper .loader {
+    position: relative;
+    top: calc(40% - 30px);
+    justify-content: center;
+    width: 100%
+}
 
-    .page-loader-wrapper img {
-        width: 38px;
-        height: 38px
-    }
+.page-loader-wrapper img {
+    width: 38px;
+    height: 38px
+}
 
 .top_state {
     background: #E8E9E9
@@ -16830,6 +16830,7 @@ svg {
     .dark-mode .page-header .right .nav-pills .nav-link {
         color: #80868e
     }
+
 ::selection {
     color: #fff;
     background: #3d78e3
@@ -17529,6 +17530,7 @@ body {
 .sidebar_dark.offcanvas-active #header_top {
     background-color: #3d78e3 !important
 }
+
 .user_div {
     position: fixed;
     top: 0;

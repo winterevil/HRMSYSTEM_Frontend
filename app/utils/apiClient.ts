@@ -32,27 +32,38 @@ export async function apiFetch(
 
     if (!response.ok) {
         const text = await response.text();
-
-        if (response.status === 400 || response.status === 401) {
-            throw new Error(text || "Bad request");
-        }
-
         const lower = text.toLowerCase();
+
         if (
             response.status === 400 &&
-            lower.includes("no ") &&
-            lower.includes(" found")
+            (lower.includes("no ") && lower.includes(" found"))
         ) {
-            console.warn("API no-data message → return []");
+            console.warn("API: no data → return empty array");
             return [];
         }
 
-        if (response.status === 403) {
-            console.warn("API 403 Forbidden → returning null");
+        if (
+            response.status === 400 &&
+            lower.includes("no") &&
+            lower.includes("request")
+        ) {
+            console.warn("API: no request data");
+            return [];
+        }
+
+        if (response.status === 401) {
+            console.warn("401 Unauthorized → redirect to login");
+            localStorage.removeItem("jwt");
+            window.location.href = "/auth/login";
             return null;
         }
 
-        console.error(`API error ${response.status}: ${text}`);
+        if (response.status === 403) {
+            console.warn("⚠ 403 Forbidden → return null");
+            return null;
+        }
+
+        // Các lỗi còn lại → throw lỗi thật
         throw new Error(text || `Request failed (${response.status})`);
     }
 

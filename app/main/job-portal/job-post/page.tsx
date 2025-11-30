@@ -19,7 +19,7 @@ interface JobPostDto {
     postedById?: number;
     postedBy?: string;
     createdAt?: string;
-    status?: number;   // 👈 THÊM DÒNG NÀY
+    status?: number;  
 }
 
 export default function JobPostPage() {

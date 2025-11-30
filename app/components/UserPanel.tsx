@@ -340,7 +340,7 @@ export default function UserPanel() {
                     <div className="text-center">
                         <div className="row">
                             <div className="col-6 pb-3">
-                                <h4 className="font-30 font-weight-bold">{profile?.roleName}</h4>
+                                <h4 className="font-20 font-weight-bold">{profile?.roleName}</h4>
                             </div>
                             <div className="col-6 pb-3">
                                 <h4 className={`font-20 font-weight-bold ${statusTextColors[profile?.status] || ""}`}>

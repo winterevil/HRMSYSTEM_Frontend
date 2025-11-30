@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import SidebarItem from "./SidebarItem";
 import { sidebarData } from "./SidebarData";

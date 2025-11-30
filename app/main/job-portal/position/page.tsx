@@ -231,7 +231,10 @@ export default function PositionPage() {
                                         <label>Department</label>
                                         <div className="form-group">
                                             <select className="custom-select" value={selectedDepartmentId}
-                                                onChange={(e) => setSelectedDepartmentId(e.target.value)}>
+                                                onChange={(e) => {
+                                                    setSelectedDepartmentId(e.target.value);
+                                                    setCurrentPage(1);
+                                                }}>
                                                 <option value="">All Departments</option>
                                                 {departments.map(dept => (
                                                     <option key={dept.id} value={dept.id.toString()}>{dept.departmentName}</option>

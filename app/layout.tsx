@@ -22,8 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body className="font-jakarta theme1">
                 {children}
 
-                {/* jQuery MUST LOAD FIRST */}
-                <Script src="https://code.jquery.com/jquery-3.6.0.min.js" strategy="beforeInteractive" />
+                {/* jQuery */}
+                <Script
+                    src="https://code.jquery.com/jquery-3.6.0.min.js"
+                    strategy="beforeInteractive"
+                />
 
                 {/* Vendor Bundle */}
                 <Script src="/assets/bundles/lib.vendor.bundle.js" strategy="beforeInteractive" />

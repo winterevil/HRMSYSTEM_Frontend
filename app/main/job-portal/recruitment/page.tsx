@@ -215,7 +215,7 @@ export default function RecruitmentPage() {
             await apiFetch(
                 `/recruitmentrequirement/approve/${processRequirements.id}`,
                 "POST",
-                { status: processRequirements.status }
+                processRequirements.status
             );
 
             toast.success("Requirement processed!");
@@ -257,11 +257,12 @@ export default function RecruitmentPage() {
                                 <select
                                     className="custom-select"
                                     value={filterStatus ?? ""}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                         setFilterStatus(
                                             e.target.value ? Number(e.target.value) : null
-                                        )
-                                    }
+                                        );
+                                        setCurrentPage(1);
+                                    }}
                                 >
                                     <option value="">All Status</option>
                                     {statuses.map((s) => (
