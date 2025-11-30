@@ -113,6 +113,10 @@ export default function EmployeePage() {
         emp.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     const [currentPage, setCurrentPage] = useState(1);
+    const [showOldPw, setShowOldPw] = useState(false);
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [showConfirmPw, setShowConfirmPw] = useState(false);
+
     const itemsPerPage = 5;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
@@ -225,14 +229,12 @@ export default function EmployeePage() {
     // Xử lý lưu (thêm/sửa)
     async function handleSave() {
         try {
-            // Chuẩn bị dữ liệu gửi đi 
-            const roleName = roles.find(r => r.id === currentEmp.roleId)?.name || "";
+            // Convert DOB
             const dobIso = currentEmp.dob ? new Date(currentEmp.dob).toISOString() : null;
+            const roleName = roles.find(r => r.id === currentEmp.roleId)?.name || "";
 
-            // Tạo body tùy theo mode
             let body: any = {};
 
-            // Nếu là thêm
             if (modalMode === "add") {
                 body = {
                     fullName: currentEmp.fullName,
@@ -245,14 +247,13 @@ export default function EmployeePage() {
                     role: roleName,
                     departmentId: currentEmp.departmentId,
                     employeeTypeId: currentEmp.employeeTypeId,
-                    status: currentEmp.status,
+                    status: currentEmp.status
                 };
-            } else {
-                // Nếu là sửa
+            }
+            else {
                 body = {
                     id: currentEmp.id,
                     fullName: currentEmp.fullName,
-                    password: currentEmp.password || null,
                     gender: currentEmp.gender,
                     dob: dobIso,
                     phone: currentEmp.phone,
@@ -260,24 +261,63 @@ export default function EmployeePage() {
                     role: roleName,
                     departmentId: currentEmp.departmentId,
                     employeeTypeId: currentEmp.employeeTypeId,
-                    status: currentEmp.status,
+                    status: currentEmp.status
                 };
+
+                if (currentEmp.id === currentUserId) {
+
+                    if (
+                        currentEmp.newPassword ||
+                        currentEmp.oldPassword ||
+                        currentEmp.confirmPassword
+                    ) {
+                        if (!currentEmp.oldPassword) {
+                            toast.error("Old password is required");
+                            return;
+                        }
+                        if (!currentEmp.newPassword) {
+                            toast.error("New password is required");
+                            return;
+                        }
+                        if (currentEmp.newPassword !== currentEmp.confirmPassword) {
+                            toast.error("Password confirmation does not match");
+                            return;
+                        }
+
+                        // Gửi lên API: old + new
+                        body.oldPassword = currentEmp.oldPassword;
+                        body.newPassword = currentEmp.newPassword;
+                    }
+                }
+                else {
+                    body.oldPassword = null;
+                    body.newPassword = null;
+                }
             }
 
+            // Gửi API
             const method = modalMode === "add" ? "POST" : "PUT";
             await apiFetch("/employee", method, body);
-            // Thành công
+
+            if (modalMode === "edit" && currentEmp.id === currentUserId && currentEmp.newPassword) {
+                toast.success("Password changed, please login again.", { autoClose: 1500 });
+                setTimeout(() => {
+                    localStorage.removeItem("jwt");
+                    window.location.href = "/auth/login";
+                }, 1500);
+            }
             toast.success("Employee saved successfully", {
                 position: "top-right",
                 autoClose: 3000,
             });
 
             setEmployees(await apiFetch("/employee"));
+
+            // Đóng modal
             (window as any).$("#exampleModal").modal("hide");
-        } catch (err: unknown) {
-            // Xử lý lỗi
-            const error = err as Error;
-            toast.error(error.message, {
+
+        } catch (err: any) {
+            toast.error(err.message, {
                 position: "top-right",
                 autoClose: 3000,
             });
@@ -698,7 +738,7 @@ export default function EmployeePage() {
                                     </div>
                                 </div>
                                 {/* Name */}
-                                <div className="col-md-12 col-sm-6">
+                                <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
                                         <input type="text" className="form-control" placeholder="Name"
                                             value={currentEmp.fullName || ""}
@@ -731,44 +771,37 @@ export default function EmployeePage() {
                                     </div>
                                 </div>
                                 {/* Address */}
-                                <div className="col-md-6 col-sm-6">
+                                <div className="col-md-12 col-sm-6">
                                     <div className="form-group">
                                         <input type="text" className="form-control" placeholder="Address"
                                             value={currentEmp.address || ""}
                                             onChange={(e) => setCurrentEmp({ ...currentEmp, address: e.target.value })} />
                                     </div>
                                 </div>
-                                {/* Password */}
-                                <div className="col-md-6 col-sm-6">
-                                    <div className="form-group">
+
+                                {/*  PASSWORD SECTION - ADD MODE */}
+                                {modalMode === "add" && (
+                                    <div className="col-md-6 col-sm-6">
                                         <div className="input-group">
                                             <input
-                                                type={showModalPassword ? "text" : "password"}
+                                                type={showNewPw ? "text" : "password"}
                                                 className="form-control"
-                                                placeholder={
-                                                    modalMode === "add"
-                                                        ? "Set initial password"
-                                                        : currentEmp.id === currentUserId
-                                                            ? "Change your password"
-                                                            : "Password (locked)"
-                                                }
+                                                placeholder="Set initial password"
                                                 value={currentEmp.password || ""}
                                                 onChange={(e) => setCurrentEmp({ ...currentEmp, password: e.target.value })}
-                                                disabled={modalMode === "edit" && currentEmp.id !== currentUserId}
                                             />
-
                                             <div
                                                 className="input-group-append"
+                                                onClick={() => setShowNewPw(!showNewPw)}
                                                 style={{ cursor: "pointer" }}
-                                                onClick={() => setShowModalPassword(!showModalPassword)}
                                             >
                                                 <span className="input-group-text">
-                                                    <i className={`fa ${showModalPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                                    <i className={`fa ${showNewPw ? "fa-eye-slash" : "fa-eye"}`} />
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Gender */}
                                 <div className="col-md-6 col-sm-6">
@@ -831,6 +864,87 @@ export default function EmployeePage() {
                                         </select>
                                     </div>
                                 </div>
+
+                                {/* PASSWORD SECTION - EDIT MODE (ONLY SELF EDIT)   */}
+                                {modalMode === "edit" && currentEmp.id === currentUserId && (
+                                    <>
+                                        <div className="col-md-12">
+                                            <h6 className="font-weight-bold">Change Password</h6>
+                                        </div>
+
+                                        {/* OLD PASSWORD */}
+                                        <div className="col-md-6 col-sm-6">
+                                            <div className="form-group">
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showOldPw ? "text" : "password"}
+                                                        className="form-control"
+                                                        placeholder="Enter old password"
+                                                        value={currentEmp.oldPassword || ""}
+                                                        onChange={(e) => setCurrentEmp({ ...currentEmp, oldPassword: e.target.value })}
+                                                    />
+                                                    <div
+                                                        className="input-group-append"
+                                                        onClick={() => setShowOldPw(!showOldPw)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showOldPw ? "fa-eye-slash" : "fa-eye"}`} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* NEW PASSWORD */}
+                                        <div className="col-md-6 col-sm-6">
+                                            <div className="form-group">
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showNewPw ? "text" : "password"}
+                                                        className="form-control"
+                                                        placeholder="Enter new password"
+                                                        value={currentEmp.newPassword || ""}
+                                                        onChange={(e) => setCurrentEmp({ ...currentEmp, newPassword: e.target.value })}
+                                                    />
+                                                    <div
+                                                        className="input-group-append"
+                                                        onClick={() => setShowNewPw(!showNewPw)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showNewPw ? "fa-eye-slash" : "fa-eye"}`} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* CONFIRM PASSWORD */}
+                                        <div className="col-md-6 col-sm-6">
+                                            <div className="form-group">
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showConfirmPw ? "text" : "password"}
+                                                        className="form-control"
+                                                        placeholder="Confirm new password"
+                                                        value={currentEmp.confirmPassword || ""}
+                                                        onChange={(e) => setCurrentEmp({ ...currentEmp, confirmPassword: e.target.value })}
+                                                    />
+                                                    <div
+                                                        className="input-group-append"
+                                                        onClick={() => setShowConfirmPw(!showConfirmPw)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showConfirmPw ? "fa-eye-slash" : "fa-eye"}`} />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="modal-footer">

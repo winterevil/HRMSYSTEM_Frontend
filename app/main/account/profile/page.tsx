@@ -33,7 +33,9 @@ export default function ProfilePage() {
     });
 
     const [rating, setRating] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
+    const [showOld, setShowOld] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const toggleFullscreen = () => {
         const elem = calendarCardRef.current;
@@ -572,6 +574,29 @@ export default function ProfilePage() {
 
     const updateProfile = async () => {
         try {
+            if (profile.oldPassword || profile.newPassword || profile.confirmPassword) {
+
+                if (!profile.oldPassword) {
+                    toast.error("Please enter old password");
+                    return;
+                }
+
+                if (!profile.newPassword) {
+                    toast.error("Please enter new password");
+                    return;
+                }
+
+                if (!profile.confirmPassword) {
+                    toast.error("Please confirm password");
+                    return;
+                }
+
+                if (profile.newPassword !== profile.confirmPassword) {
+                    toast.error("New password and confirm password do not match");
+                    return;
+                }
+            }
+
             const body = {
                 id: profile.id,
                 fullName: profile.fullName,
@@ -581,46 +606,37 @@ export default function ProfilePage() {
                 phone: profile.phone,
                 address: profile.address,
 
-                // backend yêu cầu bắt buộc có Role
                 role: isHR
                     ? roles.find(r => r.id === profile.roleId)?.name
                     : profile.roleName,
 
-                // backend dùng để map role table
                 roleId: profile.roleId,
 
-                // các field backend cũng yêu cầu luôn có
                 departmentId: profile.departmentId,
                 employeeTypeId: profile.employeeTypeId,
                 status: profile.status,
 
-                // password — nếu user đổi chính họ
-                password: profile.password || null
+                oldPassword: profile.oldPassword || null,
+                newPassword: profile.newPassword || null
             };
 
             await apiFetch("/employee", "PUT", body);
 
-            toast.success("Profile updated successfully!",
-                {
-                    position: "top-right",
-                    autoClose: 3000,
-                });
+            toast.success("Profile updated successfully!");
 
-            // Nếu có đổi mật khẩu → logout ngay
-            if (profile.password) {
-                localStorage.removeItem("jwt");
-                window.location.href = "/auth/login";
+            // Nếu có thay đổi password → logout
+            if (profile.newPassword) {
+                toast.success("Password changed, please login again.", { autoClose: 1500 });
+                setTimeout(() => {
+                    localStorage.removeItem("jwt");
+                    window.location.href = "/auth/login";
+                }, 1500);
             }
 
         } catch (err: any) {
-            const error = err as Error;
-            toast.error(error.message, {
-                position: "top-right",
-                autoClose: 3000,
-            })
+            toast.error(err.message);
         }
     };
-
 
     return (
         <div className="section-body mt-3">
@@ -776,27 +792,6 @@ export default function ProfilePage() {
                                                 <input type="email" className="form-control" disabled value={profile.email || ""} />
                                             </div>
 
-                                            {/* Password */}
-                                            <div className="col-md-6">
-                                                <label className="form-label">New Password</label>
-                                                <div className="input-group">
-                                                    <input
-                                                        type={showPassword ? "text" : "password"}
-                                                        className="form-control"
-                                                        placeholder="Enter new password"
-                                                        value={profile.password || ""}
-                                                        onChange={(e) => setProfile({ ...profile, password: e.target.value })}
-                                                    />
-                                                    <div className="input-group-append" onClick={() => setShowPassword(!showPassword)}
-                                                        style={{ cursor: "pointer" }}>
-                                                        <span className="input-group-text">
-                                                            <i className={`fa ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                            </div>
-
                                             {/* Phone */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Phone</label>
@@ -835,7 +830,7 @@ export default function ProfilePage() {
                                             </div>
 
                                             {/* Address */}
-                                            <div className="col-md-12">
+                                            <div className="col-md-6">
                                                 <label className="form-label">Address</label>
                                                 <input
                                                     type="text"
@@ -908,7 +903,63 @@ export default function ProfilePage() {
                                                     ))}
                                                 </select>
                                             </div>
+                                            <div className="col-md-12 mt-4">
+                                                <h5 className="mb-3">Change Password</h5>
+                                            </div>
 
+                                            {/* OLD PASSWORD */}
+                                            <div className="col-md-4">
+                                                <label className="form-label">Old Password</label>
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showOld ? "text" : "password"}
+                                                        className="form-control"
+                                                        value={profile.oldPassword || ""}
+                                                        onChange={(e) => setProfile({ ...profile, oldPassword: e.target.value })}
+                                                    />
+                                                    <div className="input-group-append" onClick={() => setShowOld(!showOld)} style={{ cursor: "pointer" }}>
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showOld ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* NEW PASSWORD */}
+                                            <div className="col-md-4">
+                                                <label className="form-label">New Password</label>
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showNew ? "text" : "password"}
+                                                        className="form-control"
+                                                        value={profile.newPassword || ""}
+                                                        onChange={(e) => setProfile({ ...profile, newPassword: e.target.value })}
+                                                    />
+                                                    <div className="input-group-append" onClick={() => setShowNew(!showNew)} style={{ cursor: "pointer" }}>
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showNew ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* CONFIRM PASSWORD */}
+                                            <div className="col-md-4">
+                                                <label className="form-label">Confirm Password</label>
+                                                <div className="input-group">
+                                                    <input
+                                                        type={showConfirm ? "text" : "password"}
+                                                        className="form-control"
+                                                        value={profile.confirmPassword || ""}
+                                                        onChange={(e) => setProfile({ ...profile, confirmPassword: e.target.value })}
+                                                    />
+                                                    <div className="input-group-append" onClick={() => setShowConfirm(!showConfirm)} style={{ cursor: "pointer" }}>
+                                                        <span className="input-group-text">
+                                                            <i className={`fa ${showConfirm ? "fa-eye-slash" : "fa-eye"}`}></i>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

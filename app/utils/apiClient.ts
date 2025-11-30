@@ -32,8 +32,12 @@ export async function apiFetch(
 
     if (!response.ok) {
         const text = await response.text();
-        const lower = text.toLowerCase();
 
+        if (response.status === 400 || response.status === 401) {
+            throw new Error(text || "Bad request");
+        }
+
+        const lower = text.toLowerCase();
         if (
             response.status === 400 &&
             lower.includes("no ") &&
@@ -45,7 +49,7 @@ export async function apiFetch(
 
         if (response.status === 403) {
             console.warn("API 403 Forbidden → returning null");
-            return null;  
+            return null;
         }
 
         console.error(`API error ${response.status}: ${text}`);
