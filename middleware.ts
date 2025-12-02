@@ -3,6 +3,12 @@ import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+    const token = request.cookies.get("jwt")?.value;
+
+    // Chặn quay lại login nếu đã đăng nhập
+    if (token && pathname.startsWith("/auth/login")) {
+        return NextResponse.redirect(new URL("/main/hrms/dashboard", request.url));
+    }
 
     if (
         pathname.startsWith("/auth") ||
@@ -13,7 +19,6 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    const token = request.cookies.get("jwt")?.value;
 
     if (!token) {
         const loginUrl = new URL("/auth/login", request.url);
@@ -24,5 +29,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/main/:path*"],
+    matcher: ["/main/:path*",
+        "/auth/:path*",],
 };

@@ -38,7 +38,7 @@ export default function JobPostPage() {
         post.title?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredJobPosts.length / itemsPerPage);
 
@@ -167,7 +167,7 @@ export default function JobPostPage() {
         }
     }
 
-    // 🟢 STATUS VIEW HELPER
+    // JOB POST STATUS
     function renderStatus(status?: number) {
         if (status === 0)
             return <span className="badge badge-success">Hiring</span>;
@@ -215,7 +215,7 @@ export default function JobPostPage() {
 
                     <div className="card-body">
                         <div className="table-responsive">
-                            <table className="table table-hover table-striped">
+                            <table className="table table-hover table-striped table-vcenter text-nowrap mb-0">
                                 <thead>
                                     <tr>
                                         <th>#</th>
@@ -242,7 +242,7 @@ export default function JobPostPage() {
                                             <td>
                                                 <div
                                                     dangerouslySetInnerHTML={{
-                                                        __html: truncate(post.title ?? "", 20, { ellipsis: "..." })
+                                                        __html: truncate(post.title ?? "", 30, { ellipsis: "..." })
                                                     }}
                                                 />
                                             </td>
@@ -250,14 +250,14 @@ export default function JobPostPage() {
                                             <td>
                                                 <div
                                                     dangerouslySetInnerHTML={{
-                                                        __html: truncate(post.content ?? "", 30, { ellipsis: "..." })
+                                                        __html: truncate(post.content ?? "", 40, { ellipsis: "..." })
                                                     }}
                                                 />
                                             </td>
 
                                             <td><div
                                                 dangerouslySetInnerHTML={{
-                                                    __html: truncate(post.requirement ?? "", 20, { ellipsis: "..." })
+                                                    __html: truncate(post.requirement ?? "", 30, { ellipsis: "..." })
                                                 }}
                                             /></td>
                                             <td>{post.postedBy}</td>
@@ -301,33 +301,70 @@ export default function JobPostPage() {
 
                                 {/* Previous */}
                                 <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                    <a className="page-link"
-                                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                    >
+                                    <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
                                         Previous
                                     </a>
                                 </li>
 
-                                {/* Page Numbers */}
-                                {Array.from({ length: totalPages }, (_, i) => (
-                                    <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                        <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                            {i + 1}
-                                        </a>
-                                    </li>
-                                ))}
+                                {(() => {
+                                    const pages = [];
+
+                                    // Always show first page
+                                    if (totalPages > 0) {
+                                        pages.push(1);
+                                    }
+
+                                    // If current > 3, show left ellipsis
+                                    if (currentPage > 3) {
+                                        pages.push("left-ellipsis");
+                                    }
+
+                                    // Middle pages (current-1, current, current+1)
+                                    for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                        if (p > 1 && p < totalPages) {
+                                            pages.push(p);
+                                        }
+                                    }
+
+                                    // If current < totalPages - 2, show right ellipsis
+                                    if (currentPage < totalPages - 2) {
+                                        pages.push("right-ellipsis");
+                                    }
+
+                                    // Always show last page (if > 1)
+                                    if (totalPages > 1) {
+                                        pages.push(totalPages);
+                                    }
+
+                                    return pages.map((p, idx) => {
+                                        if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                            return (
+                                                <li key={idx} className="page-item disabled">
+                                                    <span className="page-link">...</span>
+                                                </li>
+                                            );
+                                        }
+
+                                        return (
+                                            <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                    {p}
+                                                </a>
+                                            </li>
+                                        );
+                                    });
+                                })()}
 
                                 {/* Next */}
                                 <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                    <a className="page-link"
-                                        onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                    >
+                                    <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
                                         Next
                                     </a>
                                 </li>
 
                             </ul>
                         </nav>
+
                     </div>
                 </div>
             </div>

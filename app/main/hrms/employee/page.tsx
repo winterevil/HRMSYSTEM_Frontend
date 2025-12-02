@@ -117,7 +117,7 @@ export default function EmployeePage() {
     const [showNewPw, setShowNewPw] = useState(false);
     const [showConfirmPw, setShowConfirmPw] = useState(false);
 
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
 
@@ -156,7 +156,6 @@ export default function EmployeePage() {
 
 
 
-    // Các thống kê
     // 1. Tổng nhân viên
     const totalEmployee = employees.length;
 
@@ -527,161 +526,70 @@ export default function EmployeePage() {
 
                                         {/* Previous */}
                                         <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                            >
+                                            <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
                                                 Previous
                                             </a>
                                         </li>
 
-                                        {/* Page Numbers */}
-                                        {Array.from({ length: totalPages }, (_, i) => (
-                                            <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                                <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                                    {i + 1}
-                                                </a>
-                                            </li>
-                                        ))}
+                                        {(() => {
+                                            const pages = [];
+
+                                            // Always show first page
+                                            if (totalPages > 0) {
+                                                pages.push(1);
+                                            }
+
+                                            // If current > 3, show left ellipsis
+                                            if (currentPage > 3) {
+                                                pages.push("left-ellipsis");
+                                            }
+
+                                            // Middle pages (current-1, current, current+1)
+                                            for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                                if (p > 1 && p < totalPages) {
+                                                    pages.push(p);
+                                                }
+                                            }
+
+                                            // If current < totalPages - 2, show right ellipsis
+                                            if (currentPage < totalPages - 2) {
+                                                pages.push("right-ellipsis");
+                                            }
+
+                                            // Always show last page (if > 1)
+                                            if (totalPages > 1) {
+                                                pages.push(totalPages);
+                                            }
+
+                                            return pages.map((p, idx) => {
+                                                if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                                    return (
+                                                        <li key={idx} className="page-item disabled">
+                                                            <span className="page-link">...</span>
+                                                        </li>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                        <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                            {p}
+                                                        </a>
+                                                    </li>
+                                                );
+                                            });
+                                        })()}
 
                                         {/* Next */}
                                         <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                            >
+                                            <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
                                                 Next
                                             </a>
                                         </li>
 
                                     </ul>
                                 </nav>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="tab-pane fade" id="Employee-view" role="tabpanel">
-                        <div className="row">
-                            <div className="col-lg-4 col-md-12">
-                                <div className="card">
-                                    <div className="card-body">
-                                        <div className="media mb-4">
-                                            <img className="avatar avatar-xl mr-3" src="../assets/images/sm/avatar1.jpg" alt="avatar" />
-                                            <div className="media-body">
-                                                <h5 className="m-0">Sara Hopkins</h5>
-                                                <p className="text-muted mb-0">Webdeveloper</p>
-                                                <ul className="social-links list-inline mb-0 mt-2">
-                                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Facebook"><i className="fa fa-facebook"></i></a></li>
-                                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="Twitter"><i className="fa fa-twitter"></i></a></li>
-                                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="1234567890"><i className="fa fa-phone"></i></a></li>
-                                                    <li className="list-inline-item"><a href="javascript:void(0)" title="" data-toggle="tooltip" data-original-title="@skypename"><i className="fa fa-skype"></i></a></li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                        <p className="mb-4">Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classNameical Latin literature from 45 BC, making it over 2000 years old.</p>
-                                        <button className="btn btn-outline-primary btn-sm"><span className="fa fa-twitter"></span> Follow</button>
-                                    </div>
-                                </div>
-                                <div className="card">
-                                    <div className="card-header border-bottom">
-                                        <h3 className="card-title">Statistics</h3>
-                                        <div className="card-options">
-                                            <a href="#" className="card-options-collapse" data-toggle="card-collapse"><i className="fe fe-chevron-up"></i></a>
-                                            <a href="#" className="card-options-remove" data-toggle="card-remove"><i className="fe fe-x"></i></a>
-                                        </div>
-                                    </div>
-                                    <div className="card-body">
-                                        <div className="text-center">
-                                            <div className="row">
-                                                <div className="col-6 pb-3">
-                                                    <label className="mb-0">Project</label>
-                                                    <h4 className="font-30 font-weight-bold">45</h4>
-                                                </div>
-                                                <div className="col-6 pb-3">
-                                                    <label className="mb-0">Growth</label>
-                                                    <h4 className="font-30 font-weight-bold">87%</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="d-block">Laravel<span className="float-right">77%</span></label>
-                                            <div className="progress progress-xs">
-                                                <div className="progress-bar bg-blue" role="progressbar" aria-valuenow={77} aria-valuemin={0} aria-valuemax={100} style={{ width: "77%" }}></div>
-                                            </div>
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="d-block">HTML<span className="float-right">50%</span></label>
-                                            <div className="progress progress-xs">
-                                                <div className="progress-bar bg-danger" role="progressbar" aria-valuenow={50} aria-valuemin={0} aria-valuemax={100} style={{ width: "50%" }}></div>
-                                            </div>
-                                        </div>
-                                        <div className="form-group mb-0">
-                                            <label className="d-block">Photoshop <span className="float-right">23%</span></label>
-                                            <div className="progress progress-xs">
-                                                <div className="progress-bar bg-green" role="progressbar" aria-valuenow={23} aria-valuemin={0} aria-valuemax={100} style={{ width: "23%" }}></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="col-lg-8 col-md-12">
-                                <div className="card">
-                                    <div className="card-body">
-                                        <ul className="new_timeline mt-3">
-                                            <li>
-                                                <div className="bullet pink"></div>
-                                                <div className="time">11:00am</div>
-                                                <div className="desc">
-                                                    <h3>Attendance</h3>
-                                                    <h4>Computer className</h4>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div className="bullet pink"></div>
-                                                <div className="time">11:30am</div>
-                                                <div className="desc">
-                                                    <h3>Added an interest</h3>
-                                                    <h4>“Volunteer Activities”</h4>
-                                                    <p>Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classNameical Latin literature from 45 BC, making it over 2000 years old.</p>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div className="bullet green"></div>
-                                                <div className="time">12:00pm</div>
-                                                <div className="desc">
-                                                    <h3>Developer Team</h3>
-                                                    <h4>Hangouts</h4>
-                                                    <ul className="list-unstyled team-info margin-0 p-t-5">
-                                                        <li><img src="../assets/images/xs/avatar1.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar2.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar3.jpg" alt="Avatar" /></li>
-                                                        <li><img src="../assets/images/xs/avatar4.jpg" alt="Avatar" /></li>
-                                                    </ul>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div className="bullet green"></div>
-                                                <div className="time">2:00pm</div>
-                                                <div className="desc">
-                                                    <h3>Responded to need</h3>
-                                                    <a href="javascript:void(0)">“In-Kind Opportunity”</a>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div className="bullet orange"></div>
-                                                <div className="time">1:30pm</div>
-                                                <div className="desc">
-                                                    <h3>Lunch Break</h3>
-                                                </div>
-                                            </li>
-                                            <li>
-                                                <div className="bullet green"></div>
-                                                <div className="time">2:38pm</div>
-                                                <div className="desc">
-                                                    <h3>Finish</h3>
-                                                    <h4>Go to Home</h4>
-                                                </div>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -730,7 +638,7 @@ export default function EmployeePage() {
                         </div>
                         <div className="modal-body">
                             <div className="row clearfix">
-                                {/* Employee ID (ẩn) */}
+                                {/* Employee ID */}
                                 <div className="col-md-4 col-sm-6 d-none">
                                     <div className="form-group">
                                         <input type="hidden" className="form-control" placeholder="Employee ID"
@@ -865,7 +773,7 @@ export default function EmployeePage() {
                                     </div>
                                 </div>
 
-                                {/* PASSWORD SECTION - EDIT MODE (ONLY SELF EDIT)   */}
+                                {/* PASSWORD SECTION - EDIT MODE */}
                                 {modalMode === "edit" && currentEmp.id === currentUserId && (
                                     <>
                                         <div className="col-md-12">

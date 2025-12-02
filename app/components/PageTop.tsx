@@ -43,14 +43,14 @@ export default function PageTop() {
                             {/*        <a className="dropdown-item" href="#"><img className="w20 mr-2" src="https://puffintheme.com/template/epic-pro/assets/images/flags/us.svg"/>English</a>*/}
                             {/*    </div>*/}
                             {/*</li>*/}
-                            <li className="nav-item dropdown">
-                                <a className="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Reports</a>
-                                <div className="dropdown-menu">
-                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-excel"></i> MS Excel</a>
-                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-word"></i> MS Word</a>
-                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-pdf"></i> PDF</a>
-                                </div>
-                            </li>
+                            {/*<li className="nav-item dropdown">*/}
+                            {/*    <a className="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">Reports</a>*/}
+                            {/*    <div className="dropdown-menu">*/}
+                            {/*        <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-excel"></i> MS Excel</a>*/}
+                            {/*        <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-word"></i> MS Word</a>*/}
+                            {/*        <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-file-pdf"></i> PDF</a>*/}
+                            {/*    </div>*/}
+                            {/*</li>*/}
                         </ul>
                         <div className="notification d-flex">
                             <div className="dropdown d-flex">

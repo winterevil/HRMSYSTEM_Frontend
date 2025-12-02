@@ -1,5 +1,5 @@
 ﻿'use client';
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/app/utils/apiClient";
 
 export default function UserPanel() {
@@ -24,6 +24,14 @@ export default function UserPanel() {
         4: "text-info",        // Probation
     };
     const currentStatus = statuses.find(s => s.value === profile?.status);
+    const isCurrentMonth = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const now = new Date();
+        return (
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear()
+        );
+    };
 
     const [stats, setStats] = useState({
         totalHours: 0,
@@ -31,8 +39,26 @@ export default function UserPanel() {
         totalOT: 0
     });
 
-    const [rating, setRating] = useState("");
     const latestTimeline = timeline.slice(0, 5);
+    const [open, setOpen] = useState(false);
+    useEffect(() => {
+        const handler = () => setOpen(prev => !prev);
+        window.addEventListener("toggle-user-panel", handler);
+        return () => window.removeEventListener("toggle-user-panel", handler);
+    }, []);
+    useEffect(() => {
+        const closeOnClickOutside = (e: MouseEvent) => {
+            if (!open) return;
+
+            const panel = document.querySelector(".user_div");
+            if (panel && panel.contains(e.target as Node)) return;
+
+            setOpen(false);
+        };
+
+        document.addEventListener("click", closeOnClickOutside);
+        return () => document.removeEventListener("click", closeOnClickOutside);
+    }, [open]);
 
     useEffect(() => {
         const token = localStorage.getItem("jwt");
@@ -60,7 +86,6 @@ export default function UserPanel() {
             console.error("Error decoding JWT", err);
         }
     }, []);
-    const isHR = user?.role === "HR";
 
     useEffect(() => {
         if (!user?.id) return;
@@ -210,23 +235,50 @@ export default function UserPanel() {
                         });
                     }
                 });
-                // === Statistics ===
 
                 // 1. Total Hours Worked
                 let totalHoursWorked = 0;
+
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+
                 attendance?.forEach((a: any) => {
-                    if (a.employeeId === user.id && a.checkinTime && a.checkoutTime) {
-                        const start = new Date(a.checkinTime).getTime();
-                        const end = new Date(a.checkoutTime).getTime();
-                        totalHoursWorked += (end - start) / (1000 * 60 * 60);
+                    if (
+                        a.employeeId === user.id &&
+                        a.checkinTime &&
+                        a.checkoutTime
+                    ) {
+                        const checkin = new Date(a.checkinTime);
+                        const checkout = new Date(a.checkoutTime);
+
+                        if (
+                            checkin.getMonth() === currentMonth &&
+                            checkin.getFullYear() === currentYear
+                        ) {
+                            totalHoursWorked += (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60);
+                        }
                     }
                 });
 
+
                 // 2. Total Leave Requests
-                const totalLeaveRequests = leaves?.filter(l => l.employeeId === user.id).length || 0;
+                const totalLeaveRequests =
+                    leaves?.filter(
+                        l =>
+                            l.employeeId === user.id &&
+                            l.startTime &&
+                            isCurrentMonth(l.startTime)
+                    ).length || 0;
 
                 // 3. Total OT Requests
-                const totalOTRequests = overtime?.filter(o => o.employeeId === user.id).length || 0;
+                const totalOTRequests =
+                    overtime?.filter(
+                        o =>
+                            o.employeeId === user.id &&
+                            o.startTime &&
+                            isCurrentMonth(o.startTime)
+                    ).length || 0;
 
                 // Update stats
                 setStats({
@@ -234,24 +286,6 @@ export default function UserPanel() {
                     totalLeave: totalLeaveRequests,
                     totalOT: totalOTRequests
                 });
-
-                // === Employee Rating ===
-                let employeeRating = "";
-
-                if (totalHoursWorked > 160 && totalLeaveRequests <= 1) {
-                    employeeRating = "Excellent";
-                }
-                else if (totalHoursWorked > 150 && totalLeaveRequests <= 2) {
-                    employeeRating = "Good";
-                }
-                else if (totalHoursWorked >= 100) {
-                    employeeRating = "Average";
-                }
-                else {
-                    employeeRating = "Bad";
-                }
-
-                setRating(employeeRating);
 
                 activities.sort(
                     (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
@@ -303,11 +337,17 @@ export default function UserPanel() {
 
 
     return (
-        <div className="user_div">
+        <div className={`user_div ${open ? "open" : ""}`}>
             <h5 className="brand-name mb-4">
                 My HRM
-                <a href="#"
-                    onClick={(e) => e.preventDefault()} className="user_btn">
+                <a
+                    href="#"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        window.dispatchEvent(new Event("toggle-user-panel"));
+                    }}
+                    className="user_btn"
+                >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10 8v-2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-2" /><path d="M15 12h-12l3 -3" /><path d="M6 15l-3 -3" /></svg>
                 </a>
             </h5>
@@ -325,8 +365,8 @@ export default function UserPanel() {
                             <h6 className="m-0">{user?.fullName}</h6>
                             <p className="text-muted mb-0">{profile?.departmentName}</p>
                             <ul className="social-links list-inline mb-0 mt-2">
-                                <li className="list-inline-item"><a href={`mailto:${user?.email || ""}`} title="Email" data-toggle="tooltip"><i className="fa fa-envelope"></i></a></li>
-                                <li className="list-inline-item"><a href={`tel:${user?.phone || ""}`} title="Phone" data-toggle="tooltip"><i className="fa fa-phone"></i></a></li>
+                                <li className="list-inline-item"><a href={`mailto:${user?.email || ""}`} title="Email"><i className="fa fa-envelope"></i></a></li>
+                                <li className="list-inline-item"><a href={`tel:${user?.phone || ""}`} title="Phone"><i className="fa fa-phone"></i></a></li>
                             </ul>
                         </div>
                     </div>

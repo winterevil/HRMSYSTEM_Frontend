@@ -1,5 +1,4 @@
 ﻿"use client";
-
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { apiFetch } from "@/app/utils/apiClient";
@@ -17,8 +16,15 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [quote, setQuote] = useState("");
     const [weather, setWeather] = useState<{ tempC: number; condition: string } | null>(null);
-
-    // === Decode JWT user info ===
+    const filterByCurrentMonth = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const now = new Date();
+        return (
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear()
+        );
+    };
+    // Decode JWT user info
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (!token) return;
@@ -49,7 +55,7 @@ export default function DashboardPage() {
         }
     }, []);
 
-    // === Random motivational quotes ===
+    // Random motivational quotes
     const quotes = [
         "Stay focused and make today amazing",
         "Small progress each day adds up to big results",
@@ -58,7 +64,7 @@ export default function DashboardPage() {
         "Success is not an accident; it’s hard work, patience, and passion",
     ];
 
-    // === Weather map ===
+    // Weather map 
     const weatherMap: Record<number, string> = {
         0: "Clear sky ☀️",
         1: "Mainly clear 🌤",
@@ -72,7 +78,7 @@ export default function DashboardPage() {
         95: "Thunderstorm ⛈",
     };
 
-    // === Fetch data + weather ===
+    // Fetch data + weather 
     useEffect(() => {
         const loadDashboard = async () => {
             try {
@@ -93,9 +99,21 @@ export default function DashboardPage() {
                 setEmployees(employeeList);
                 setDepartments(dep?.dep || dep || []);
                 setEmployeeTypes(types?.type || types || []);
-                setLeaves(leave?.leave || leave || []);
-                setOvertime(ot?.ot || ot || []);
-                setAttendance(att?.att || att || []);
+                setLeaves(
+                    (leave?.leave || leave || []).filter(l =>
+                        l.startTime && filterByCurrentMonth(l.startTime)
+                    )
+                );
+                setOvertime(
+                    (ot?.ot || ot || []).filter(o =>
+                        o.startTime && filterByCurrentMonth(o.startTime)
+                    )
+                );
+                setAttendance(
+                    (att?.att || att || []).filter(a =>
+                        a.checkinTime && filterByCurrentMonth(a.checkinTime)
+                    )
+                );
 
                 // Update user info using employee data
                 setUser(prev => {
@@ -114,7 +132,7 @@ export default function DashboardPage() {
                     };
                 });
 
-                // === WEATHER FETCH ===
+                // WEATHER FETCH 
                 const fetchWeather = async () => {
                     try {
                         if (!navigator.geolocation) {
@@ -179,7 +197,7 @@ export default function DashboardPage() {
     const role = user?.role || "Employee";
     const displayName = user?.fullName || "Employee";
 
-    // ====== ROLE FILTER ======
+    // ROLE FILTER 
     const filteredEmployees =
         role === "Manager"
             ? employees.filter((e) => e.departmentId === user?.departmentId)
@@ -193,11 +211,11 @@ export default function DashboardPage() {
             ? leaves.filter((l) => l.employeeId === user?.id)
             : leaves;
 
-    // ====== SUMMARY ======
+    // SUMMARY
     const totalEmployees = filteredEmployees.length;
     const totalDepartments = departments.length;
 
-    // ====== EMPLOYEE GENDER ======
+    // EMPLOYEE GENDER
     const genderSummary = filteredEmployees.reduce<Record<string, number>>((acc, e) => {
         const key = e?.gender || "Unknown";
         acc[key] = (acc[key] || 0) + 1;
@@ -206,7 +224,7 @@ export default function DashboardPage() {
     const genderLabels = Object.keys(genderSummary);
     const genderSeries = Object.values(genderSummary);
 
-    // ====== EMPLOYEE TYPE ======
+    // EMPLOYEE TYPE
     const typeSummary = employeeTypes.map((t) => ({
         type: t.typeName || "Unknown",
         total: filteredEmployees.filter((e) => e.employeeTypeId === t.id).length,
@@ -214,7 +232,7 @@ export default function DashboardPage() {
     const typeLabels = typeSummary.map((t) => t.type);
     const typeSeries = typeSummary.map((t) => t.total);
 
-    // ====== LEAVE BY DEPARTMENT ======
+    // LEAVE BY DEPARTMENT
     const approvedLeaves = filteredLeaves.filter((l) => l.status === 1);
     const leaveDeptSummary = departments.map((d) => {
         const count = approvedLeaves.filter((l) => {
@@ -228,7 +246,7 @@ export default function DashboardPage() {
     const leaveDeptLabels = leaveDeptSummary.map((d) => d.dept);
     const leaveDeptCounts = leaveDeptSummary.map((d) => d.total);
 
-    // ====== OVERTIME ======
+    // OVERTIME
     const otSummary: Record<string, number> = {};
     overtime
         .filter((o) => o.status === 1)
@@ -245,7 +263,7 @@ export default function DashboardPage() {
     const otNames = Object.keys(otSummary);
     const otHours = Object.values(otSummary);
 
-    // ====== ATTENDANCE ======
+    // ATTENDANCE
     let onTime = 0,
         late = 0,
         absent = 0;
@@ -261,7 +279,7 @@ export default function DashboardPage() {
     absent = Math.max(0, filteredEmployees.length - checkedEmployees.size);
     const total = onTime + late + absent || 1;
 
-    // ====== DEPT EMPLOYEE COUNT ======
+    // DEPARTMENT EMPLOYEE COUNT
     const deptSummary = departments.map((d) => ({
         dept: d.departmentName,
         total: filteredEmployees.filter((e) => e.departmentId === d.id).length,
@@ -269,54 +287,6 @@ export default function DashboardPage() {
     const deptLabels = deptSummary.map((d) => d.dept);
     const deptCounts = deptSummary.map((d) => d.total);
 
-    // ====== CHARTS ======
-    const genderChart = {
-        series: genderSeries.length ? genderSeries : [1],
-        options: {
-            labels: genderLabels.length ? genderLabels : ["No Data"],
-            chart: { type: "pie" },
-            legend: { position: "bottom" },
-        },
-    };
-    const typeChart = {
-        series: typeSeries.length ? typeSeries : [1],
-        options: {
-            labels: typeLabels.length ? typeLabels : ["No Data"],
-            chart: { type: "pie" },
-            legend: { position: "bottom" },
-        },
-    };
-    const attendanceChart = {
-        series: [(onTime / total) * 100, (late / total) * 100, (absent / total) * 100],
-        options: {
-            labels: ["On Time", "Late", "Absent"],
-            chart: { type: "donut" },
-            legend: { position: "bottom" },
-        },
-    };
-    const deptChart = {
-        series: [{ name: "Employees", data: deptCounts }],
-        options: {
-            chart: { type: "bar" },
-            xaxis: { categories: deptLabels },
-        },
-    };
-    const leaveDeptChart = {
-        series: [{ name: "Leave Requests", data: leaveDeptCounts }],
-        options: {
-            chart: { type: "bar" },
-            xaxis: { categories: leaveDeptLabels },
-        },
-    };
-    const overtimeChart = {
-        series: [{ name: "Overtime Hours", data: otHours }],
-        options: {
-            chart: { type: "bar" },
-            xaxis: { categories: otNames },
-        },
-    };
-
-    // ====== Extra UI elements ======
     const tips = [
         " Stay positive and proactive every morning.",
         " Help a teammate today — it strengthens the culture.",
@@ -324,10 +294,8 @@ export default function DashboardPage() {
         " Plan your top 3 priorities before lunch.",
     ];
 
-    // ========================================================================
-    // === NEW CALENDAR WITH MONTH NAVIGATION ===
-    // ========================================================================
-    const Calendar = () => {
+    // CALENDAR
+        const Calendar = () => {
         const [currentDate, setCurrentDate] = useState(new Date());
 
         const year = currentDate.getFullYear();
@@ -420,9 +388,163 @@ export default function DashboardPage() {
         );
     };
 
-    // ========================================================================
-    // ============================ RETURN UI ================================
-    // ========================================================================
+    const CHART_COLORS = [
+        "#4f46e5", // Indigo
+        "#10b981", // Green
+        "#f59e0b", // Amber
+        "#ef4444", // Red
+        "#3b82f6", // Blue
+        "#ec4899", // Pink
+        "#8b5cf6", // Purple
+    ];
+
+    const donutBase = {
+        chart: {
+            type: "donut",
+            toolbar: { show: true },
+        },
+        legend: {
+            position: "bottom",
+            fontSize: "14px",
+            labels: { colors: "#374151" },
+            markers: { width: 12, height: 12, radius: 4 },
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: (val) => {
+                return val < 10 ? "" : `${val.toFixed(1)}%`;
+            },
+            style: {
+                fontSize: "10px",
+                fontWeight: "600",
+                colors: ["#ffffff"],
+            },
+        },
+        plotOptions: {
+            pie: {
+                donut: {
+                    labels: {
+                        show: true,
+                        total: {
+                            show: true,
+                            label: "Total",
+                            fontSize: "14px",
+                            color: "#111827",
+                            fontWeight: 600,
+                        },
+                    },
+                },
+            },
+        },
+        colors: CHART_COLORS,
+    };
+
+    const barBase = {
+        chart: {
+            type: "bar",
+            toolbar: { show: true },
+        },
+        plotOptions: {
+            bar: {
+                borderRadius: 6,
+                columnWidth: "45%",
+            },
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: (val) => Math.round(val),
+            style: {
+                fontSize: "13px",
+                fontWeight: 600,
+                colors: ["#111827"],
+            },
+        },
+        xaxis: {
+            labels: {
+                style: {
+                    fontSize: "11px",
+                },
+                formatter: (value) => {
+                    return value.length > 12 ? value.replace(/ /g, "\n") : value;
+                }
+            }
+        },
+    };
+
+    // Attendance Donut
+    const attendanceChart = {
+        series: [
+            Math.round((onTime / total) * 100),
+            Math.round((late / total) * 100),
+            Math.round((absent / total) * 100),
+        ],
+        options: {
+            ...donutBase,
+            labels: ["On Time", "Late", "Absent"],
+        },
+    };
+
+    // Gender Donut
+    const genderChart = {
+        series: genderSeries.length ? genderSeries : [1],
+        options: {
+            ...donutBase,
+            labels: genderLabels,
+        },
+    };
+
+    // Employee Type Donut
+    const typeChart = {
+        series: typeSeries.length ? typeSeries : [1],
+        options: {
+            ...donutBase,
+            labels: typeLabels,
+        },
+    };
+
+    // Department Bar
+    const deptChart = {
+        series: [{ name: "Employees", data: deptCounts }],
+        options: {
+            ...barBase,
+            xaxis: {
+                ...barBase.xaxis,
+                categories: deptLabels,
+            },
+            colors: ["#6366f1"],
+        },
+    };
+
+    // Leave Bar
+    const leaveDeptChart = {
+        series: [{ name: "Leaves", data: leaveDeptCounts }],
+        options: {
+            ...barBase,
+            xaxis: {
+                ...barBase.xaxis,
+                categories: leaveDeptLabels,
+            },
+            colors: ["#f59e0b"],
+        },
+    };
+
+    // Overtime Bar
+    const overtimeChart = {
+        series: [
+            {
+                name: "Overtime Hours",
+                data: otHours.map((n) => Math.round(n)),
+            },
+        ],
+        options: {
+            ...barBase,
+            xaxis: {
+                ...barBase.xaxis,
+                categories: otNames,
+            },
+            colors: ["#10b981"],
+        },
+    };
 
     return (
         <div className="section-body">
@@ -442,7 +564,7 @@ export default function DashboardPage() {
                     )}
                 </div>
 
-                {/* === Summary cards === */}
+                {/* Summary cards */}
                 <div className="row clearfix mt-4">
                     {role === "Employee" ? (
                         <>
@@ -463,7 +585,7 @@ export default function DashboardPage() {
                     )}
                 </div>
 
-                {/* === Charts === */}
+                {/* Charts */}
                 {role === "Employee" ? (
                     <div className="row clearfix row-deck mt-4">
                         <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Your Attendance</h3></div><div className="card-body"><ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} /></div></div></div>
@@ -480,7 +602,6 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {/* === Extra Panels === */}
                 <div className="row g-4 mt-5 row-cols-1 row-cols-lg-3">
                     {/* Calendar */}
                     <div className="col">

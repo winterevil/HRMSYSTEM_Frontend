@@ -17548,3 +17548,29 @@ body {
 .user_show .user_div {
     right: 0;
 }
+
+/* --- ApexCharts UI Fix --- */
+.apexcharts-legend-text {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+}
+
+.apexcharts-title-text {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+}
+
+.apexcharts-datalabel {
+    font-weight: 600 !important;
+    color: #111827 !important;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 20px;
+}

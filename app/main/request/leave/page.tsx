@@ -17,19 +17,39 @@ interface LeaveRequestDto {
 }
 
 export default function LeaveRequest() {
-    // ======================= STATE =======================
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
     const [processRequest, setProcessRequest] = useState<LeaveRequestDto | null>(null);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDto[]>([]);
     const [currentRequest, setCurrentRequest] = useState<LeaveRequestDto | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [currentRole, setCurrentRole] = useState<string>("");
+    const [filterDay, setFilterDay] = useState("");
+    let filteredRequests = leaveRequests;
 
-    const filteredRequests = leaveRequests.filter((r) =>
-        r.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filter by employee name
+    if (searchTerm.trim() !== "") {
+        filteredRequests = filteredRequests.filter((r) =>
+            r.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+
+    // Filter by day (selected day must be inside leave duration)
+    if (filterDay) {
+        const target = new Date(filterDay);
+
+        filteredRequests = filteredRequests.filter((r) => {
+            if (!r.startTime || !r.endTime) return false;
+
+            const start = new Date(r.startTime);
+            const end = new Date(r.endTime);
+
+            // Kiểm tra: ngày filter phải >= start và <= end
+            return target >= start && target <= end;
+        });
+    }
+
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
@@ -39,7 +59,7 @@ export default function LeaveRequest() {
     const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-    // ======================= GET ROLE =======================
+    // GET ROLE
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (!token) return;
@@ -65,7 +85,6 @@ export default function LeaveRequest() {
         }
     }, []);
 
-    // ======================= STATUS =======================
     const statuses = [
         { value: 0, label: "Pending", className: "badge badge-warning" },
         { value: 1, label: "Approved", className: "badge badge-success" },
@@ -73,7 +92,7 @@ export default function LeaveRequest() {
         { value: 3, label: "Cancelled", className: "badge badge-secondary" },
     ];
 
-    // ======================= HELPER =======================
+    // HELPER
     function filterByMonth(requests: LeaveRequestDto[], monthOffset = 0) {
         const now = new Date();
         const target = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -112,7 +131,7 @@ export default function LeaveRequest() {
         return dateString.split("T")[0];
     }
 
-    // ======================= STATS CALC =======================
+    // Calculate Statistics
     const hasData = leaveRequests.length > 0;
     const currentMonth = hasData ? filterByMonth(leaveRequests, 0) : [];
     const prevMonth = hasData ? filterByMonth(leaveRequests, -1) : [];
@@ -130,7 +149,7 @@ export default function LeaveRequest() {
     const rejectedChange = comparePercent(currentStats.rejected, prevStats.rejected);
     const approvedDaysChange = comparePercent(currentStats.approvedDays, prevStats.approvedDays);
 
-    // ======================= LOAD DATA =======================
+    // LOAD DATA
     useEffect(() => {
         loadData();
     }, []);
@@ -144,8 +163,6 @@ export default function LeaveRequest() {
             setLeaveRequests([]);
         }
     }
-
-    // ======================= BUTTON FUNCTIONS =======================
     function openAdd() {
         setModalMode("add");
         setCurrentRequest(null);
@@ -160,7 +177,6 @@ export default function LeaveRequest() {
         setProcessRequest(request);
     }
 
-    // ======================= SAVE =======================
     async function handleSave() {
         try {
             const token = localStorage.getItem("jwt");
@@ -198,7 +214,6 @@ export default function LeaveRequest() {
         }
     }
 
-    // ======================= PROCESS =======================
     async function handleProcessSave() {
         if (!processRequest?.id) return;
 
@@ -215,10 +230,37 @@ export default function LeaveRequest() {
             toast.error(err.message);
         }
     }
+    if (currentRole === "Admin") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
 
-    // ============================================================
-    //                         RENDER UI
-    // ============================================================
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    This page is restricted to Employees in company.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Your role does not include access to leave requests.
+                </p>
+            </div>
+        );
+    }
     return (
         <div className="section-body">
             <div className="container-fluid">
@@ -241,7 +283,6 @@ export default function LeaveRequest() {
                     </div>
                 ) : (
                     <>
-                        {/* ---------- Action Header ---------- */}
                         <div className="d-flex justify-content-between align-items-center">
                             <ul className="nav nav-tabs page-header-tab"></ul>
 
@@ -258,7 +299,7 @@ export default function LeaveRequest() {
                             </div>
                         </div>
 
-                        {/* ---------- Statistics ---------- */}
+                        {/* Statistics */}
                         <div className="row clearfix mt-4">
                             <div className="col-lg-3 col-md-6">
                                 <div className="card">
@@ -313,14 +354,13 @@ export default function LeaveRequest() {
                             </div>
                         </div>
 
-                        {/* ---------- Table ---------- */}
                         <div className="card mt-4">
                             <div className="card-header border-bottom">
                                 <h3 className="card-title">Leave Request</h3>
                                 <div className="card-options">
                                     <input
                                         type="text"
-                                        className="form-control"
+                                        className="form-control form-control-sm"
                                         placeholder="Search name..."
                                         value={searchTerm}
                                         onChange={(e) => {
@@ -328,6 +368,28 @@ export default function LeaveRequest() {
                                             setCurrentPage(1);
                                         }}
                                     />
+
+                                    <input
+                                        type="date"
+                                        className="form-control form-control-sm mr-2"
+                                        style={{ width: "150px" }}
+                                        value={filterDay}
+                                        onChange={(e) => {
+                                            setFilterDay(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+
+                                    <button
+                                        className="btn btn-sm btn-primary"
+                                        onClick={() => {
+                                            setSearchTerm("");
+                                            setFilterDay("");
+                                            setCurrentPage(1);
+                                        }}
+                                    >
+                                        Clear
+                                    </button>
                                 </div>
                             </div>
 
@@ -392,45 +454,81 @@ export default function LeaveRequest() {
                                         </tbody>
                                     </table>
                                 </div>
-                                <nav aria-label="Page navigation">
-                                    <ul className="pagination mb-0 justify-content-end">
+                                    <nav aria-label="Page navigation">
+                                        <ul className="pagination mb-0 justify-content-end">
 
-                                        {/* Previous */}
-                                        <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                            >
-                                                Previous
-                                            </a>
-                                        </li>
-
-                                        {/* Page Numbers */}
-                                        {Array.from({ length: totalPages }, (_, i) => (
-                                            <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                                <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                                    {i + 1}
+                                            {/* Previous */}
+                                            <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                                                <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
+                                                    Previous
                                                 </a>
                                             </li>
-                                        ))}
 
-                                        {/* Next */}
-                                        <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                            >
-                                                Next
-                                            </a>
-                                        </li>
+                                            {(() => {
+                                                const pages = [];
 
-                                    </ul>
-                                </nav>
+                                                // Always show first page
+                                                if (totalPages > 0) {
+                                                    pages.push(1);
+                                                }
+
+                                                // If current > 3, show left ellipsis
+                                                if (currentPage > 3) {
+                                                    pages.push("left-ellipsis");
+                                                }
+
+                                                // Middle pages (current-1, current, current+1)
+                                                for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                                    if (p > 1 && p < totalPages) {
+                                                        pages.push(p);
+                                                    }
+                                                }
+
+                                                // If current < totalPages - 2, show right ellipsis
+                                                if (currentPage < totalPages - 2) {
+                                                    pages.push("right-ellipsis");
+                                                }
+
+                                                // Always show last page (if > 1)
+                                                if (totalPages > 1) {
+                                                    pages.push(totalPages);
+                                                }
+
+                                                return pages.map((p, idx) => {
+                                                    if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                                        return (
+                                                            <li key={idx} className="page-item disabled">
+                                                                <span className="page-link">...</span>
+                                                            </li>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                            <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                                {p}
+                                                            </a>
+                                                        </li>
+                                                    );
+                                                });
+                                            })()}
+
+                                            {/* Next */}
+                                            <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                                                <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
+                                                    Next
+                                                </a>
+                                            </li>
+
+                                        </ul>
+                                    </nav>
                             </div>
                         </div>
                     </>
                 )}
             </div>
 
-            {/* ================= MODAL ADD/EDIT ================= */}
+            {/* MODAL ADD/EDIT */}
             <div className="modal fade" id="exampleModal" tabIndex={-1} role="dialog">
                 <div className="modal-dialog" role="document">
                     <div className="modal-content">
@@ -522,7 +620,7 @@ export default function LeaveRequest() {
                 </div>
             </div>
 
-            {/* ================= MODAL PROCESS ================= */}
+            {/* MODAL PROCESS */}
             <div className="modal fade" id="processModal" tabIndex={-1} role="dialog">
                 <div className="modal-dialog" role="document">
                     <div className="modal-content">

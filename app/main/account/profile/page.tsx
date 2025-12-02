@@ -36,6 +36,14 @@ export default function ProfilePage() {
     const [showOld, setShowOld] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const isCurrentMonth = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const now = new Date();
+        return (
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear()
+        );
+    };
 
     const toggleFullscreen = () => {
         const elem = calendarCardRef.current;
@@ -481,23 +489,50 @@ export default function ProfilePage() {
                         });
                     }
                 });
-                // === Statistics ===
 
                 // 1. Total Hours Worked
                 let totalHoursWorked = 0;
+
+                const now = new Date();
+                const currentMonth = now.getMonth();  
+                const currentYear = now.getFullYear();
+
                 attendance?.forEach((a: any) => {
-                    if (a.employeeId === user.id && a.checkinTime && a.checkoutTime) {
-                        const start = new Date(a.checkinTime).getTime();
-                        const end = new Date(a.checkoutTime).getTime();
-                        totalHoursWorked += (end - start) / (1000 * 60 * 60);
+                    if (
+                        a.employeeId === user.id &&
+                        a.checkinTime &&
+                        a.checkoutTime
+                    ) {
+                        const checkin = new Date(a.checkinTime);
+                        const checkout = new Date(a.checkoutTime);
+
+                        if (
+                            checkin.getMonth() === currentMonth &&
+                            checkin.getFullYear() === currentYear
+                        ) {
+                            totalHoursWorked += (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60);
+                        }
                     }
                 });
 
+
                 // 2. Total Leave Requests
-                const totalLeaveRequests = leaves?.filter(l => l.employeeId === user.id).length || 0;
+                const totalLeaveRequests =
+                    leaves?.filter(
+                        l =>
+                            l.employeeId === user.id &&
+                            l.startTime &&
+                            isCurrentMonth(l.startTime)
+                    ).length || 0;
 
                 // 3. Total OT Requests
-                const totalOTRequests = overtime?.filter(o => o.employeeId === user.id).length || 0;
+                const totalOTRequests =
+                    overtime?.filter(
+                        o =>
+                            o.employeeId === user.id &&
+                            o.startTime &&
+                            isCurrentMonth(o.startTime)
+                    ).length || 0;
 
                 // Update stats
                 setStats({
@@ -716,12 +751,10 @@ export default function ProfilePage() {
                                     <div className="card-header border-bottom">
                                         <h3 className="card-title">Activity</h3>
                                         <div className="card-options">
-                                            {/* Download Excel */}
                                             <a onClick={downloadExcel} style={{ cursor: "pointer", marginLeft: 10 }}>
                                                 <i className="fa fa-file-excel text-success"></i>
                                             </a>
 
-                                            {/* Download Word */}
                                             <a onClick={downloadTimelineWord} style={{ cursor: "pointer", marginLeft: 15 }}>
                                                 <i className="fa fa-file-word text-success"></i>
                                             </a>
@@ -760,12 +793,10 @@ export default function ProfilePage() {
                                         <h3 className="card-title">Edit Profile</h3>
                                         <div className="card-options">
 
-                                            {/* Word */}
                                             <a onClick={downloadProfileWord} style={{ cursor: "pointer", marginLeft: 10 }}>
                                                 <i className="fa fa-file-word text-success"></i>
                                             </a>
 
-                                            {/* Excel */}
                                             <a onClick={downloadProfileExcel} style={{ cursor: "pointer", marginLeft: 15 }}>
                                                 <i className="fa fa-file-excel text-success"></i>
                                             </a>
@@ -775,7 +806,6 @@ export default function ProfilePage() {
                                     <div className="card-body">
                                         <div className="row clearfix">
 
-                                            {/* Full Name */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Full Name</label>
                                                 <input
@@ -786,13 +816,11 @@ export default function ProfilePage() {
                                                 />
                                             </div>
 
-                                            {/* Email (không sửa được) */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Email</label>
                                                 <input type="email" className="form-control" disabled value={profile.email || ""} />
                                             </div>
 
-                                            {/* Phone */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Phone</label>
                                                 <input
@@ -803,7 +831,6 @@ export default function ProfilePage() {
                                                 />
                                             </div>
 
-                                            {/* DOB */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Date of Birth</label>
                                                 <input
@@ -814,7 +841,6 @@ export default function ProfilePage() {
                                                 />
                                             </div>
 
-                                            {/* Gender */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Gender</label>
                                                 <select
@@ -829,7 +855,6 @@ export default function ProfilePage() {
                                                 </select>
                                             </div>
 
-                                            {/* Address */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Address</label>
                                                 <input
@@ -840,7 +865,6 @@ export default function ProfilePage() {
                                                 />
                                             </div>
 
-                                            {/* Department */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Department</label>
                                                 <select
@@ -856,7 +880,6 @@ export default function ProfilePage() {
                                                 </select>
                                             </div>
 
-                                            {/* Employee Type */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Employee Type</label>
                                                 <select
@@ -872,7 +895,6 @@ export default function ProfilePage() {
                                                 </select>
                                             </div>
 
-                                            {/* Role */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Role</label>
                                                 <select
@@ -888,7 +910,6 @@ export default function ProfilePage() {
                                                 </select>
                                             </div>
 
-                                            {/* Status */}
                                             <div className="col-md-6">
                                                 <label className="form-label">Status</label>
                                                 <select

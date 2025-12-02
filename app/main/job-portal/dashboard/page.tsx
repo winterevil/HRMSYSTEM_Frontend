@@ -108,7 +108,7 @@ export default function JobDashboardPage() {
     const isHR = currentRole === "HR";
     const isManager = currentRole === "Manager";
 
-    // === STATS ===
+    // STATS
     const count = {
         totalJob: jobPosts.length,
         totalReq: requirements.length,
@@ -119,7 +119,7 @@ export default function JobDashboardPage() {
         completed: requirements.filter((r) => r.status === 3).length,
     };
 
-    // === PIE CHART ===
+    // PIE CHART
     const chartData = {
         labels: ["Pending", "Approved", "Rejected", "Completed"],
         datasets: [
@@ -130,7 +130,7 @@ export default function JobDashboardPage() {
         ],
     };
 
-    // === DEPARTMENT PROGRESS BAR CHART ===
+    // DEPARTMENT PROGRESS BAR CHART
     const departmentProgressData = (() => {
         const deptMap: Record<string, number> = {};
         if (positions.length > 0) {
@@ -233,7 +233,7 @@ export default function JobDashboardPage() {
             })
             : jobPosts;
 
-    //NEW CALENDAR COMPONENT
+    // CALENDAR
     const Calendar = () => {
         const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -549,7 +549,7 @@ export default function JobDashboardPage() {
                 )}
 
                 <div className="row g-4 mt-4 mb-5">
-                    {/* CALENDAR HERE */}
+                    {/* CALENDAR */}
                     <div className="col-lg-6">
                         <div className="card border-0 shadow-sm h-100">
                             <div className="card-header bg-white border-bottom">

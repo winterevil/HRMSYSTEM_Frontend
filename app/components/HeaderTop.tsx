@@ -5,30 +5,30 @@ import { apiFetch } from "@/app/utils/apiClient";
 
 export default function HeaderTop() {
     const [user, setUser] = useState<any>(null);
+    const [offcanvas, setOffcanvas] = useState(false);
+
+    // Toggle menu
+    const toggleMenu = (e: any) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOffcanvas(prev => !prev);
+    };
+
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (typeof window !== "undefined" && (window as any).$ && (window as any).$.fn.tooltip) {
-                const $ = (window as any).$;
+        if (offcanvas) {
+            document.body.classList.add("offcanvas-active");
+        } else {
+            document.body.classList.remove("offcanvas-active");
+        }
+    }, [offcanvas]);
 
-                $('[data-toggle="tooltip"]').tooltip({
-                    trigger: 'hover'
-                });
-
-                clearInterval(interval);
-            }
-        }, 50);
-
-        return () => clearInterval(interval);
-    }, []);
-
-
+    // Decode JWT
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (!token) return;
 
         try {
             const payload = JSON.parse(atob(token.split(".")[1]));
-
             const empId =
                 payload["employeeId"] ||
                 payload["nameid"] ||
@@ -41,14 +41,14 @@ export default function HeaderTop() {
             setUser({
                 id: empId ? Number(empId) : null,
                 role,
-                fullName: null,
+                fullName: null
             });
-
         } catch (err) {
-            console.error("Error decoding JWT", err);
+            console.error("JWT decode error:", err);
         }
     }, []);
 
+    // load employee info
     useEffect(() => {
         if (!user?.id) return;
 
@@ -57,9 +57,7 @@ export default function HeaderTop() {
                 const list = res?.emp || res || [];
 
                 const me = list.find(
-                    (e: any) =>
-                        e.id === user.id ||
-                        e.employeeId === user.id
+                    (e: any) => e.id === user.id || e.employeeId === user.id
                 );
 
                 if (me) {
@@ -71,8 +69,9 @@ export default function HeaderTop() {
                     }));
                 }
             })
-            .catch((err) => console.error("Employee list fetch error:", err));
+            .catch((err) => console.error("Employee fetch error:", err));
     }, [user?.id]);
+
     return (
         <div id="header_top" className="header_top">
             <div className="container">
@@ -95,26 +94,58 @@ export default function HeaderTop() {
                         {/*<a href="#" className="nav-link icon theme_btn" data-toggle="tooltip" data-placement="right" title="Themes">*/}
                         {/*    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 3m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" /><path d="M19 6h1a2 2 0 0 1 2 2a5 5 0 0 1 -5 5l-5 0v2" /><path d="M10 15m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z" /></svg>*/}
                         {/*</a>*/}
-                        <a href="#"
-                            onClick={(e) => e.preventDefault()} className="nav-link user_btn" data-toggle="tooltip" data-placement="right" title="User Menu" ><div className="avatar"
+                        {/*<a href="#"*/}
+                        {/*    onClick={(e) => e.preventDefault()} className="nav-link user_btn" data-toggle="tooltip" data-placement="right" title="User Menu" ><div className="avatar"*/}
+                        {/*        style={{*/}
+                        {/*            backgroundColor: "#4e73df",*/}
+                        {/*            color: "white",*/}
+                        {/*        }}>*/}
+                        {/*        {(user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U")}*/}
+                        {/*    </div>*/}
+                        {/*</a>*/}
+                        {/*<a*/}
+                        {/*    href="#"*/}
+                        {/*    className="nav-link icon menu_toggle"*/}
+                        {/*    onClick={(e) => {*/}
+                        {/*        e.preventDefault();*/}
+                        {/*        document.body.classList.toggle("offcanvas-active");*/}
+                        {/*    }}*/}
+                        {/*    data-toggle="tooltip"*/}
+                        {/*    title="Toggle"*/}
+                        {/*>*/}
+                        {/*    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 6h16" /><path d="M7 12h13" /><path d="M10 18h10" /></svg>*/}
+                        {/*</a>*/}
+                        <a
+                            href="#"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.dispatchEvent(new Event("toggle-user-panel"));
+                            }}
+                            className="nav-link user_btn"
+                        >
+                            <div className="avatar"
                                 style={{
                                     backgroundColor: "#4e73df",
-                                    color: "white",
-                                }}>
+                                    color: "white"
+                                }}
+                            >
                                 {(user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U")}
                             </div>
                         </a>
+
                         <a
                             href="#"
                             className="nav-link icon menu_toggle"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                document.body.classList.toggle("offcanvas-active");
-                            }}
-                            data-toggle="tooltip"
-                            title="Toggle"
+                            onClick={toggleMenu}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 6h16" /><path d="M7 12h13" /><path d="M10 18h10" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 6h16" />
+                                <path d="M7 12h13" />
+                                <path d="M10 18h10" />
+                            </svg>
                         </a>
                     </div>
                 </div>

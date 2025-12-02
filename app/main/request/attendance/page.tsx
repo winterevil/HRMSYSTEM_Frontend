@@ -20,13 +20,35 @@ export default function AttendancePage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [isCheckedIn, setIsCheckedIn] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const filteredRequests = (attendances || []).filter((request) =>
-        (request.employeeName || "")
-            .toLowerCase()
-            .includes((searchTerm || "").toLowerCase())
-    );
+    const [filterDay, setFilterDay] = useState("");
+
+    let filteredRequests = attendances;
+
+    // Filter by name
+    if (searchTerm.trim() !== "") {
+        filteredRequests = filteredRequests.filter((a) =>
+            a.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+
+    // Filter by selected day
+    if (filterDay) {
+        const target = new Date(filterDay);
+
+        filteredRequests = filteredRequests.filter((a) => {
+            if (!a.checkinDate) return false;
+            const d = new Date(a.checkinDate);
+
+            return (
+                d.getFullYear() === target.getFullYear() &&
+                d.getMonth() === target.getMonth() &&
+                d.getDate() === target.getDate()
+            );
+        });
+    }
+
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
@@ -57,14 +79,14 @@ export default function AttendancePage() {
 
                 setCurrentRole(role);
                 setCurrentUserEmail(email);
-                if (empId) setCurrentUserId(Number(empId)); 
+                if (empId) setCurrentUserId(Number(empId));
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
         }
     }, []);
 
-    // === Tính thống kê dữ liệu tháng hiện tại ===
+    // Tính thống kê dữ liệu tháng hiện tại
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -77,14 +99,13 @@ export default function AttendancePage() {
             return d.getFullYear() === year && d.getMonth() === month;
         });
 
-        // Không có dữ liệu thì trả về mặc định
         if (filtered.length === 0) {
             return { total: 0, attendanceRate: 0, avgHours: 0 };
         }
 
         // Danh sách nhân viên duy nhất trong tháng đó
         const employees = [...new Set(filtered.map(a => a.employeeId))];
-        const employeeCount = employees.length || 1; 
+        const employeeCount = employees.length || 1;
 
         // Số ngày làm việc trong tháng (trừ T7, CN)
         const workingDays = Array.from({ length: 31 }, (_, i) => {
@@ -92,7 +113,7 @@ export default function AttendancePage() {
             return d.getMonth() === month && d.getDay() !== 0 && d.getDay() !== 6;
         }).filter(Boolean).length || 1;
 
-        // --- Tổng giờ làm ---
+        // Tổng giờ làm
         const total = filtered.reduce((sum, a) => {
             if (!a.checkinTime || !a.checkoutTime) return sum;
             const start = new Date(a.checkinTime).getTime();
@@ -100,7 +121,7 @@ export default function AttendancePage() {
             return sum + Math.max(0, (end - start) / (1000 * 60 * 60));
         }, 0);
 
-        // --- Tỉ lệ điểm danh trung bình ---
+        // Tỉ lệ điểm danh trung bình
         const employeeRates = employees.map(empId => {
             const empDays = new Set(
                 filtered
@@ -116,16 +137,15 @@ export default function AttendancePage() {
                 ? employeeRates.reduce((s, r) => s + r, 0) / employeeRates.length
                 : 0;
 
-        // --- Tổng ngày có mặt trung bình ---
+        // Tổng ngày có mặt trung bình
         const avgPresentDays =
             employeeRates.length > 0
                 ? employeeRates.reduce((s, r) => s + (r / 100) * workingDays, 0) / employeeRates.length
                 : 0;
 
-        // --- Giờ trung bình mỗi ngày ---
+        // Giờ trung bình mỗi ngày
         const avgHours = avgPresentDays > 0 ? total / avgPresentDays : 0;
 
-        // Đảm bảo không NaN
         return {
             total: isFinite(total) ? total : 0,
             attendanceRate: isFinite(attendanceRate) ? attendanceRate : 0,
@@ -150,7 +170,7 @@ export default function AttendancePage() {
     const rateChange = comparePercent(currentStats.attendanceRate, prevStats.attendanceRate);
     const avgChange = comparePercent(currentStats.avgHours, prevStats.avgHours);
 
-    // === Fetch Attendance ===
+    // Fetch Attendance
     useEffect(() => {
         fetchAttendances();
 
@@ -199,18 +219,18 @@ export default function AttendancePage() {
         setLoading(true);
         try {
             const data: AttendanceDto[] = await apiFetch("/attendance");
-            setAttendances(Array.isArray(data) ? data : []); 
+            setAttendances(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Error fetching attendances:", err);
             toast.error("Error loading attendance data");
-            setAttendances([]); 
+            setAttendances([]);
         } finally {
             setLoading(false);
         }
     }
 
     function updateCheckinStatus() {
-        if (!currentUserId) return; 
+        if (!currentUserId) return;
         const today = new Date().toISOString().split("T")[0];
 
         const myAttendance = attendances.filter(
@@ -226,7 +246,7 @@ export default function AttendancePage() {
         setIsCheckedIn(!!todayRecord);
     }
 
-    // === Checkin / Checkout ===
+    // Checkin / Checkout
     async function handleCheck() {
         setLoading(true);
         try {
@@ -257,7 +277,37 @@ export default function AttendancePage() {
             setLoading(false);
         }
     }
+    if (currentRole === "Admin") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
 
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    This page is restricted to Employees in company.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Your role does not include access to attendance records.
+                </p>
+            </div>
+        );
+    }
     return (
         <div className="section-body">
             <div className="container-fluid">
@@ -347,6 +397,26 @@ export default function AttendancePage() {
                                                     setSearchTerm(e.target.value);
                                                     setCurrentPage(1);
                                                 }} />
+                                            <input
+                                                type="date"
+                                                className="form-control form-control-sm mr-2"
+                                                value={filterDay}
+                                                onChange={(e) => {
+                                                    setFilterDay(e.target.value);
+                                                    setCurrentPage(1);
+                                                }}
+                                            />
+
+                                            <button
+                                                className="btn btn-sm btn-primary"
+                                                onClick={() => {
+                                                    setSearchTerm("");
+                                                    setFilterDay("");
+                                                    setCurrentPage(1);
+                                                }}
+                                            >
+                                                Clear
+                                            </button>
                                         </div>
                                     </form>
                                 </div>
@@ -399,33 +469,70 @@ export default function AttendancePage() {
 
                                         {/* Previous */}
                                         <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                            >
+                                            <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
                                                 Previous
                                             </a>
                                         </li>
 
-                                        {/* Page Numbers */}
-                                        {Array.from({ length: totalPages }, (_, i) => (
-                                            <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                                <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                                    {i + 1}
-                                                </a>
-                                            </li>
-                                        ))}
+                                        {(() => {
+                                            const pages = [];
+
+                                            // Always show first page
+                                            if (totalPages > 0) {
+                                                pages.push(1);
+                                            }
+
+                                            // If current > 3, show left ellipsis
+                                            if (currentPage > 3) {
+                                                pages.push("left-ellipsis");
+                                            }
+
+                                            // Middle pages (current-1, current, current+1)
+                                            for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                                if (p > 1 && p < totalPages) {
+                                                    pages.push(p);
+                                                }
+                                            }
+
+                                            // If current < totalPages - 2, show right ellipsis
+                                            if (currentPage < totalPages - 2) {
+                                                pages.push("right-ellipsis");
+                                            }
+
+                                            // Always show last page (if > 1)
+                                            if (totalPages > 1) {
+                                                pages.push(totalPages);
+                                            }
+
+                                            return pages.map((p, idx) => {
+                                                if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                                    return (
+                                                        <li key={idx} className="page-item disabled">
+                                                            <span className="page-link">...</span>
+                                                        </li>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                        <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                            {p}
+                                                        </a>
+                                                    </li>
+                                                );
+                                            });
+                                        })()}
 
                                         {/* Next */}
                                         <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                            <a className="page-link"
-                                                onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                            >
+                                            <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
                                                 Next
                                             </a>
                                         </li>
 
                                     </ul>
                                 </nav>
+
                             </div>
                         </div>
                     </div>

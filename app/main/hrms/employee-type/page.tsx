@@ -28,7 +28,7 @@ export default function EmployeeTypePage() {
         type.typeName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredEmployeeTypes.length / itemsPerPage);
 
@@ -251,27 +251,63 @@ export default function EmployeeTypePage() {
 
                                             {/* Previous */}
                                             <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                                <a className="page-link"
-                                                    onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                                >
+                                                <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
                                                     Previous
                                                 </a>
                                             </li>
 
-                                            {/* Page Numbers */}
-                                            {Array.from({ length: totalPages }, (_, i) => (
-                                                <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                                    <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                                        {i + 1}
-                                                    </a>
-                                                </li>
-                                            ))}
+                                            {(() => {
+                                                const pages = [];
+
+                                                // Always show first page
+                                                if (totalPages > 0) {
+                                                    pages.push(1);
+                                                }
+
+                                                // If current > 3, show left ellipsis
+                                                if (currentPage > 3) {
+                                                    pages.push("left-ellipsis");
+                                                }
+
+                                                // Middle pages (current-1, current, current+1)
+                                                for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                                    if (p > 1 && p < totalPages) {
+                                                        pages.push(p);
+                                                    }
+                                                }
+
+                                                // If current < totalPages - 2, show right ellipsis
+                                                if (currentPage < totalPages - 2) {
+                                                    pages.push("right-ellipsis");
+                                                }
+
+                                                // Always show last page (if > 1)
+                                                if (totalPages > 1) {
+                                                    pages.push(totalPages);
+                                                }
+
+                                                return pages.map((p, idx) => {
+                                                    if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                                        return (
+                                                            <li key={idx} className="page-item disabled">
+                                                                <span className="page-link">...</span>
+                                                            </li>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                            <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                                {p}
+                                                            </a>
+                                                        </li>
+                                                    );
+                                                });
+                                            })()}
 
                                             {/* Next */}
                                             <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                                <a className="page-link"
-                                                    onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                                >
+                                                <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
                                                     Next
                                                 </a>
                                             </li>

@@ -23,11 +23,13 @@ export default function OvertimeRequest() {
     const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequestDto[]>([]);
     const [currentRequest, setCurrentRequest] = useState<OvertimeRequestDto | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterDay, setFilterDay] = useState("");
+    const [filterMonth, setFilterMonth] = useState("");
 
     const [currentRole, setCurrentRole] = useState<string>("");
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-    // ---- Decode JWT ----
+    // Decode JWT
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (!token) return;
@@ -71,7 +73,7 @@ export default function OvertimeRequest() {
         );
     };
 
-    // ---- Stats ----
+    // Statistics
     const filterByMonth = (list: OvertimeRequestDto[], offset = 0) => {
         const now = new Date();
         const target = new Date(now.getFullYear(), now.getMonth() + offset, 1);
@@ -116,7 +118,6 @@ export default function OvertimeRequest() {
     const rejectedChange = comparePercent(curStats.rejected, prevStats.rejected);
     const approvedHoursChange = comparePercent(curStats.approvedHours, prevStats.approvedHours);
 
-    // ---- Open modals ----
     const openAdd = () => {
         setModalMode("add");
         setCurrentRequest(null);
@@ -131,7 +132,7 @@ export default function OvertimeRequest() {
         setProcessRequest(r);
     };
 
-    // ---- Load data ----
+    // Load data
     useEffect(() => {
         loadData();
     }, []);
@@ -146,7 +147,6 @@ export default function OvertimeRequest() {
         }
     }
 
-    // ---- SAVE ----
     async function handleSave() {
         const token = localStorage.getItem("jwt");
         if (!token) return;
@@ -183,7 +183,6 @@ export default function OvertimeRequest() {
         }
     }
 
-    // ---- PROCESS ----
     async function handleProcessSave() {
         if (!processRequest?.id) return;
 
@@ -200,13 +199,32 @@ export default function OvertimeRequest() {
         }
     }
 
-    // ---- FILTER ----
-    const filteredRequests =
-        overtimeRequests.filter((r) =>
+    // FILTER
+    let filteredRequests = overtimeRequests;
+
+    // Search by name
+    if (searchTerm.trim() !== "") {
+        filteredRequests = filteredRequests.filter(r =>
             r.employeeName?.toLowerCase().includes(searchTerm.toLowerCase())
-        ) ?? [];
+        );
+    }
+
+    // Filter by day
+    if (filterDay) {
+        const target = new Date(filterDay);
+        filteredRequests = filteredRequests.filter(r => {
+            if (!r.startTime) return false;
+            const d = new Date(r.startTime);
+            return (
+                d.getFullYear() === target.getFullYear() &&
+                d.getMonth() === target.getMonth() &&
+                d.getDate() === target.getDate()
+            );
+        });
+    }
+
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
     // Tính tổng số trang
     const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
 
@@ -214,11 +232,41 @@ export default function OvertimeRequest() {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredRequests.slice(indexOfFirstItem, indexOfLastItem);
+    if (currentRole === "Admin") {
+        return (
+            <div
+                style={{
+                    height: "80vh",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                }}
+            >
+                <i
+                    className="fa-solid fa-ban"
+                    style={{
+                        fontSize: "60px",
+                        color: "red",
+                        marginBottom: "20px",
+                    }}
+                ></i>
+
+                <h2 className="text-danger" style={{ fontSize: "26px", marginBottom: "10px" }}>
+                    This page is restricted to Employees in company.
+                </h2>
+
+                <p style={{ fontSize: "16px", color: "#555" }}>
+                    Your role does not include access to overtime requests.
+                </p>
+            </div>
+        );
+    }
     return (
         <div className="section-body">
             <div className="container-fluid">
 
-                {/* ------- HEADER + BUTTON ADD -------- */}
                 <div className="d-flex justify-content-between align-items-center">
                     <ul className="nav nav-tabs page-header-tab"></ul>
 
@@ -237,7 +285,6 @@ export default function OvertimeRequest() {
                     )}
                 </div>
 
-                {/* ------- DASHBOARD -------- */}
                 {currentRole !== "Admin" && (
                     <div className="row clearfix mt-3">
                         {/* Pending */}
@@ -290,7 +337,6 @@ export default function OvertimeRequest() {
                     </div>
                 )}
 
-                {/* ------- TABLE -------- */}
                 <div className="card mt-3">
                     <div className="card-header border-bottom">
                         <h3 className="card-title">Overtime Request</h3>
@@ -305,6 +351,30 @@ export default function OvertimeRequest() {
                                     setCurrentPage(1);
                                 }}
                             />
+
+                            <input
+                                type="date"
+                                className="form-control form-control-sm mr-2"
+                                style={{ width: "150px" }}
+                                value={filterDay}
+                                onChange={(e) => {
+                                    setFilterDay(e.target.value);
+                                    setFilterMonth(""); 
+                                    setCurrentPage(1);
+                                }}
+                            />
+
+                            <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => {
+                                    setFilterMonth("");
+                                    setFilterDay("");
+                                    setSearchTerm("");
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                Clear
+                            </button>
                         </div>
                     </div>
 
@@ -375,38 +445,73 @@ export default function OvertimeRequest() {
 
                                 {/* Previous */}
                                 <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                    <a className="page-link"
-                                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                                    >
+                                    <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
                                         Previous
                                     </a>
                                 </li>
 
-                                {/* Page Numbers */}
-                                {Array.from({ length: totalPages }, (_, i) => (
-                                    <li key={i} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
-                                        <a className="page-link" onClick={() => setCurrentPage(i + 1)}>
-                                            {i + 1}
-                                        </a>
-                                    </li>
-                                ))}
+                                {(() => {
+                                    const pages = [];
+
+                                    // Always show first page
+                                    if (totalPages > 0) {
+                                        pages.push(1);
+                                    }
+
+                                    // If current > 3, show left ellipsis
+                                    if (currentPage > 3) {
+                                        pages.push("left-ellipsis");
+                                    }
+
+                                    // Middle pages (current-1, current, current+1)
+                                    for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+                                        if (p > 1 && p < totalPages) {
+                                            pages.push(p);
+                                        }
+                                    }
+
+                                    // If current < totalPages - 2, show right ellipsis
+                                    if (currentPage < totalPages - 2) {
+                                        pages.push("right-ellipsis");
+                                    }
+
+                                    // Always show last page (if > 1)
+                                    if (totalPages > 1) {
+                                        pages.push(totalPages);
+                                    }
+
+                                    return pages.map((p, idx) => {
+                                        if (p === "left-ellipsis" || p === "right-ellipsis") {
+                                            return (
+                                                <li key={idx} className="page-item disabled">
+                                                    <span className="page-link">...</span>
+                                                </li>
+                                            );
+                                        }
+
+                                        return (
+                                            <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
+                                                <a className="page-link" onClick={() => setCurrentPage(p)}>
+                                                    {p}
+                                                </a>
+                                            </li>
+                                        );
+                                    });
+                                })()}
 
                                 {/* Next */}
                                 <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                    <a className="page-link"
-                                        onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                                    >
+                                    <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
                                         Next
                                     </a>
                                 </li>
 
                             </ul>
                         </nav>
+
                     </div>
                 </div>
             </div>
-
-            {/* ----------- MODALS ----------- */}
 
             {/* ADD & EDIT */}
             <div className="modal fade" id="exampleModal" tabIndex={-1}>
