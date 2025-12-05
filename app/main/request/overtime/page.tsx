@@ -291,7 +291,7 @@ export default function OvertimeRequest() {
                         <div className="col-lg-3 col-md-6">
                             <div className="card">
                                 <div className="card-body">
-                                    <h6>Waiting for HR</h6>
+                                    <h6>Waiting</h6>
                                     <h3 className="pt-3">{curStats.pending}</h3>
                                     <span className={parseFloat(pendingChange) >= 0 ? "text-success" : "text-danger"}>
                                         {pendingChange}%</span> Since last month
@@ -303,7 +303,7 @@ export default function OvertimeRequest() {
                         <div className="col-lg-3 col-md-6">
                             <div className="card">
                                 <div className="card-body">
-                                    <h6>Approved by HR</h6>
+                                    <h6>Approved</h6>
                                     <h3 className="pt-3">{curStats.approved}</h3>
                                     <span className={parseFloat(approvedChange) >= 0 ? "text-success" : "text-danger"}>
                                         {approvedChange}%</span> Since last month

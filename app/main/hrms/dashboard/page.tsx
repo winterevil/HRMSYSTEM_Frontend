@@ -274,7 +274,7 @@ export default function DashboardPage() {
         const checkin = new Date(a.checkinTime);
         const hour = checkin.getHours() + checkin.getMinutes() / 60;
         if (hour <= 8.5) onTime++;
-        else if (hour <= 12) late++;
+        else late++;
     });
     absent = Math.max(0, filteredEmployees.length - checkedEmployees.size);
     const total = onTime + late + absent || 1;
