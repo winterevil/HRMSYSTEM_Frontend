@@ -59,7 +59,7 @@ export async function apiFetch(
         }
 
         if (response.status === 403) {
-            console.warn("⚠ 403 Forbidden → return null");
+            console.warn("403 Forbidden → return null");
             return null;
         }
 
