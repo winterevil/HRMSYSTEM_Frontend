@@ -21,6 +21,7 @@ export default function AttendancePage() {
     const [isCheckedIn, setIsCheckedIn] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDay, setFilterDay] = useState("");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
     let filteredRequests = attendances;
 
@@ -46,7 +47,12 @@ export default function AttendancePage() {
             );
         });
     }
+    filteredRequests = filteredRequests.sort((a, b) => {
+        const da = a.checkinDate ? new Date(a.checkinDate).getTime() : 0;
+        const db = b.checkinDate ? new Date(b.checkinDate).getTime() : 0;
 
+        return sortOrder === "asc" ? da - db : db - da;
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
     // Tính tổng số trang
@@ -430,7 +436,14 @@ export default function AttendancePage() {
                                                 <th className="w200">Name</th>
                                                 <th className="w200">Checkin Time</th>
                                                 <th className="w200">Checkout Time</th>
-                                                <th className="w100">Date</th>
+                                                <th
+                                                    className="w100"
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                                                >
+                                                    Date{" "}
+                                                    <i className={`fa-solid ${sortOrder === "asc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>

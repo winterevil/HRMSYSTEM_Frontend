@@ -16,6 +16,8 @@ export default function ProfilePage() {
     const calendarCardRef = useRef<HTMLDivElement>(null);
     const [timeline, setTimeline] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>({});
+    const [visibleDays, setVisibleDays] = useState(3);
+
     const [roles, setRoles] = useState<any[]>([]);
     const [departments, setDepartments] = useState<any[]>([]);
     const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
@@ -36,6 +38,7 @@ export default function ProfilePage() {
     const [showOld, setShowOld] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+
     const isCurrentMonth = (dateStr: string) => {
         const d = new Date(dateStr);
         const now = new Date();
@@ -55,6 +58,20 @@ export default function ProfilePage() {
             document.exitFullscreen();
         }
     };
+
+    const groupByDate = (activities: any[]) => {
+        return activities.reduce((acc: any, item) => {
+            const dateKey = new Date(item.time).toLocaleDateString("en-CA");
+            if (!acc[dateKey]) acc[dateKey] = [];
+            acc[dateKey].push(item);
+            return acc;
+        }, {});
+    };
+    const flattenTimeline = (grouped: any) => {
+        return Object.keys(grouped)
+            .flatMap(date => grouped[date]);
+    };
+
     const downloadPNG = () => {
         if (!calendarCardRef.current) {
             toast.error("Calendar frame not found!");
@@ -76,7 +93,9 @@ export default function ProfilePage() {
     };
     const downloadTimelineWord = async () => {
         try {
-            if (timeline.length === 0) {
+            const flatTimeline = flattenTimeline(timeline);
+
+            if (flatTimeline.length === 0) {
                 toast.warning("No timeline data to export!");
                 return;
             }
@@ -90,7 +109,7 @@ export default function ProfilePage() {
                 new Paragraph("")
             ];
 
-            timeline.forEach(item => {
+            flatTimeline.forEach(item => {
                 children.push(
                     new Paragraph({
                         children: [
@@ -99,13 +118,13 @@ export default function ProfilePage() {
                         ]
                     })
                 );
+
                 children.push(
                     new Paragraph({
-                        children: [
-                            new TextRun(item.content || "")
-                        ]
+                        children: [new TextRun(item.content || "")]
                     })
                 );
+
                 children.push(new Paragraph(""));
             });
 
@@ -125,7 +144,9 @@ export default function ProfilePage() {
 
     const downloadExcel = async () => {
         try {
-            if (timeline.length === 0) {
+            const flatTimeline = flattenTimeline(timeline);
+
+            if (flatTimeline.length === 0) {
                 toast.warning("No timeline data to export!");
                 return;
             }
@@ -139,7 +160,7 @@ export default function ProfilePage() {
                 { header: "Content", key: "content", width: 60 }
             ];
 
-            timeline.forEach(item => {
+            flatTimeline.forEach(item => {
                 sheet.addRow({
                     title: item.title,
                     time: new Date(item.time).toLocaleString(),
@@ -152,10 +173,7 @@ export default function ProfilePage() {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             });
 
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "timeline.xlsx";
-            link.click();
+            saveAs(blob, "timeline.xlsx");
 
             toast.success("Timeline Excel downloaded successfully!");
         } catch (err) {
@@ -494,7 +512,7 @@ export default function ProfilePage() {
                 let totalHoursWorked = 0;
 
                 const now = new Date();
-                const currentMonth = now.getMonth();  
+                const currentMonth = now.getMonth();
                 const currentYear = now.getFullYear();
 
                 attendance?.forEach((a: any) => {
@@ -563,7 +581,10 @@ export default function ProfilePage() {
                     (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
                 );
 
-                setTimeline(activities);
+                const grouped = groupByDate(activities);
+                setTimeline(grouped);
+                setVisibleDays(3);
+
             } catch (err) {
                 console.error("Timeline load error:", err);
             }
@@ -761,28 +782,59 @@ export default function ProfilePage() {
                                         </div>
 
                                     </div>
-                                    <div className="card-body">
-                                        {timeline.length === 0 ? (
+                                    <div className="card-body" style={{ maxHeight: "500px", overflowY: "auto" }}>
+                                        {Object.keys(timeline).length === 0 ? (
                                             <p className="text-muted text-center">No activity yet.</p>
                                         ) : (
-                                            timeline.map((item, index) => (
-                                                <div key={index} className="timeline_item mb-4">
-                                                    <span>
-                                                        <i className={item.icon} style={{ marginRight: 8 }}></i>
-                                                        <strong>{item.title}</strong>
-                                                        <small className="float-right text-muted">
-                                                            {new Date(item.time).toLocaleDateString("en-CA")}
-                                                            {" "}
-                                                            {new Date(item.time).toLocaleTimeString()}
-                                                        </small>
-                                                    </span>
-                                                    <div className="msg mt-2">
-                                                        <p className="text-muted" style={{ whiteSpace: "pre-line" }}>
-                                                            {item.content}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))
+                                            <>
+                                                {Object.keys(timeline)
+                                                    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+                                                    .slice(0, visibleDays)
+                                                    .map(date => (
+                                                        <div key={date} className="mb-4">
+
+                                                            {/* DATE HEADER */}
+                                                            <div
+                                                                className="font-weight-bold text-primary mb-2"
+                                                                style={{ borderBottom: "1px solid #eee" }}
+                                                            >
+                                                                {new Date(date).toDateString()}
+                                                            </div>
+
+                                                            {/* ACTIVITIES */}
+                                                            {timeline[date].map((item: any, index: number) => (
+                                                                <div key={index} className="timeline_item mb-3">
+                                                                    <span>
+                                                                        <i className={item.icon} style={{ marginRight: 8 }}></i>
+                                                                        <strong>{item.title}</strong>
+                                                                        <small className="float-right text-muted">
+                                                                            {new Date(item.time).toLocaleTimeString()}
+                                                                        </small>
+                                                                    </span>
+
+                                                                    <div className="msg mt-1">
+                                                                        <p className="text-muted mb-0" style={{ whiteSpace: "pre-line" }}>
+                                                                            {item.content}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ))}
+
+                                                {/* LOAD MORE */}
+                                                {visibleDays <
+                                                    Object.keys(timeline).length && (
+                                                        <div className="text-center mt-3">
+                                                            <button
+                                                                className="btn btn-outline-primary btn-sm"
+                                                                onClick={() => setVisibleDays(v => v + 3)}
+                                                            >
+                                                                Load older activities
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                            </>
                                         )}
                                     </div>
                                 </div>

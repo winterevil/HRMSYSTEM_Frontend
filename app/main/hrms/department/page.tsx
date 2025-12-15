@@ -122,8 +122,24 @@ export default function DepartmentPage() {
                 autoClose: 3000
             });
 
-            const updatedDepts = await apiFetch("/department");
-            setDepartments(updatedDepts);
+            const [depts, employees] = await Promise.all([
+                apiFetch("/department"),
+                apiFetch("/employee"),
+            ]);
+
+            // Đếm nhân viên theo phòng ban
+            const counts: Record<number, number> = {};
+            employees.forEach((emp: any) => {
+                counts[emp.departmentId] = (counts[emp.departmentId] || 0) + 1;
+            });
+
+            // Gán lại totalEmployee
+            const deptsWithCount = depts.map((d: any) => ({
+                ...d,
+                totalEmployee: counts[d.id] || 0
+            }));
+
+            setDepartments(deptsWithCount);
 
             // Đóng modal
             (window as any).jQuery("#exampleModal").modal("hide");

@@ -295,7 +295,7 @@ export default function DashboardPage() {
     ];
 
     // CALENDAR
-        const Calendar = () => {
+    const Calendar = () => {
         const [currentDate, setCurrentDate] = useState(new Date());
 
         const year = currentDate.getFullYear();
@@ -575,6 +575,11 @@ export default function DashboardPage() {
                                 <div className="card p-3"><h6>Approved Overtime</h6><h3>{overtime.filter(o => o.status === 1).length}</h3></div>
                             </div>
                         </>
+                    ) : role === "Admin" ? (
+                        <>
+                            <div className="col-md-6 text-center"><div className="card p-3"><h6>Employees</h6><h3>{totalEmployees}</h3></div></div>
+                            <div className="col-md-6 text-center"><div className="card p-3"><h6>Departments</h6><h3>{totalDepartments}</h3></div></div>
+                        </>
                     ) : (
                         <>
                             <div className="col-md-3 text-center"><div className="card p-3"><h6>Employees</h6><h3>{totalEmployees}</h3></div></div>
@@ -592,14 +597,54 @@ export default function DashboardPage() {
                         <div className="col-xl-8"><div className="card"><div className="card-header"><h3>Your Overtime</h3></div><div className="card-body"><ApexChart options={overtimeChart.options} series={overtimeChart.series} type="bar" height={300} /></div></div></div>
                     </div>
                 ) : (
-                    <div className="row clearfix row-deck mt-4">
-                        <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Employees by Department</h3></div><div className="card-body"><ApexChart options={deptChart.options} series={deptChart.series} type="bar" height={300} /></div></div></div>
-                        <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Overtime by Employee</h3></div><div className="card-body"><ApexChart options={overtimeChart.options} series={overtimeChart.series} type="bar" height={300} /></div></div></div>
-                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Attendance Overview</h3></div><div className="card-body"><ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} /></div></div></div>
-                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Gender</h3></div><div className="card-body"><ApexChart options={genderChart.options} series={genderChart.series} type="pie" height={220} /></div></div></div>
-                        <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Type</h3></div><div className="card-body"><ApexChart options={typeChart.options} series={typeChart.series} type="pie" height={220} /></div></div></div>
-                        <div className="col-xl-12"><div className="card"><div className="card-header"><h3>Leave by Department</h3></div><div className="card-body"><ApexChart options={leaveDeptChart.options} series={leaveDeptChart.series} type="bar" height={300} /></div></div></div>
-                    </div>
+                    role === "Admin" ? (
+                        <div className="row clearfix row-deck mt-4">
+                            <div className="col-xl-12">
+                                <div className="card">
+                                    <div className="card-header"><h3>Employees by Department</h3></div>
+                                    <div className="card-body">
+                                        <ApexChart options={deptChart.options} series={deptChart.series} type="bar" height={300} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="col-xl-4">
+                                <div className="card text-center">
+                                    <div className="card-header"><h3>Attendance Overview</h3></div>
+                                    <div className="card-body">
+                                        <ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="col-xl-4">
+                                <div className="card text-center">
+                                    <div className="card-header"><h3>Employee Gender</h3></div>
+                                    <div className="card-body">
+                                        <ApexChart options={genderChart.options} series={genderChart.series} type="pie" height={220} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="col-xl-4">
+                                <div className="card text-center">
+                                    <div className="card-header"><h3>Employee Type</h3></div>
+                                    <div className="card-body">
+                                        <ApexChart options={typeChart.options} series={typeChart.series} type="pie" height={220} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="row clearfix row-deck mt-4">
+                            <div className="col-xl-12"><div className="card"><div className="card-header"><h3>Employees by Department</h3></div><div className="card-body"><ApexChart options={deptChart.options} series={deptChart.series} type="bar" height={300} /></div></div></div>
+                            <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Attendance Overview</h3></div><div className="card-body"><ApexChart options={attendanceChart.options} series={attendanceChart.series} type="donut" height={220} /></div></div></div>
+                            <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Gender</h3></div><div className="card-body"><ApexChart options={genderChart.options} series={genderChart.series} type="pie" height={220} /></div></div></div>
+                            <div className="col-xl-4"><div className="card text-center"><div className="card-header"><h3>Employee Type</h3></div><div className="card-body"><ApexChart options={typeChart.options} series={typeChart.series} type="pie" height={220} /></div></div></div>
+                            <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Overtime by Employee</h3></div><div className="card-body"><ApexChart options={overtimeChart.options} series={overtimeChart.series} type="bar" height={300} /></div></div></div>
+                            <div className="col-xl-6"><div className="card"><div className="card-header"><h3>Leave by Department</h3></div><div className="card-body"><ApexChart options={leaveDeptChart.options} series={leaveDeptChart.series} type="bar" height={300} /></div></div></div>
+                        </div>
+                    )
                 )}
 
                 <div className="row g-4 mt-5 row-cols-1 row-cols-lg-3">
@@ -615,68 +660,68 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* HR Insights & Updates */}
-                    <div className="col">
-                        <div className="card border-0 shadow-sm h-100">
-                            <div className="card-header bg-white border-bottom">
-                                <h6 className="fw-semibold text-dark mb-0">HR Insights & Updates</h6>
-                            </div>
-                            <div className="card-body d-flex flex-column justify-content-between">
-                                <ul className="list-group list-group-flush mb-3">
-                                    <li className="list-group-item border-0">
-                                        <strong>Top Department:</strong>{" "}
-                                        {deptLabels.length
-                                            ? deptLabels[deptCounts.indexOf(Math.max(...deptCounts))]
-                                            : "N/A"}
-                                    </li>
-                                    <li className="list-group-item border-0">
-                                        <strong>Lowest Leave Requests:</strong>{" "}
-                                        {leaveDeptLabels.length
-                                            ? leaveDeptLabels[
-                                            leaveDeptCounts.indexOf(Math.min(...leaveDeptCounts))
-                                            ]
-                                            : "N/A"}
-                                    </li>
-                                    <li className="list-group-item border-0">
-                                        <strong>Most Active Employees:</strong>{" "}
-                                        {otNames.slice(0, 2).join(", ") || "No Data"}
-                                    </li>
-                                    <li className="list-group-item border-0">
-                                        <strong>Average Attendance Rate:</strong>{" "}
-                                        {Math.round((onTime / total) * 100)}%
-                                    </li>
-                                </ul>
-                                <div>
-                                    <hr className="my-2" />
-                                    <p className="small text-muted mb-0">
-                                        Upcoming: Annual HR review on{" "}
-                                        <span className="text-dark fw-semibold">Dec 10</span>.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Work Tips */}
                     <div className="col">
                         <div className="card border-0 shadow-sm h-100">
                             <div className="card-header bg-white">
-                                <h6 className="fw-semibold mb-0 text-dark">Work Tips</h6>
+                                <h6 className="fw-semibold mb-0 text-dark">Employee Guidelines</h6>
                             </div>
-                            <div className="card-body d-flex flex-column justify-content-between">
-                                <ul className="list-group list-group-flush flex-grow-1 mb-3">
+
+                            <div className="card-body small">
+
+                                {/* Policies */}
+                                <h6 className="fw-semibold text-primary">Policies</h6>
+                                <ul className="list-unstyled mb-3 ps-1">
+                                    <li>Working hours: 8:30–17:00</li>
+                                    <li>Leave request: 2 days early</li>
+                                    <li>OT applies after 17:00</li>
+                                    <li>Workplace etiquette</li>
+                                </ul>
+
+                                {/* Values */}
+                                <h6 className="fw-semibold text-success">Company Values</h6>
+                                <p className="text-muted mb-3">
+                                    Integrity - Teamwork - Innovation - Customer Focus
+                                </p>
+
+                                {/* Tips */}
+                                <h6 className="fw-semibold text-warning">Work Tips</h6>
+                                <ul className="list-unstyled mb-0 ps-1">
                                     {tips.map((tip, i) => (
-                                        <li
-                                            key={i}
-                                            className="list-group-item border-0 text-secondary small"
-                                        >
-                                            {tip}
-                                        </li>
+                                        <li key={i}>{tip}</li>
                                     ))}
                                 </ul>
-                                <p className="small text-muted mb-0 text-center">
-                                    Refresh your mindset every day for better results.
-                                </p>
+
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-header bg-white">
+                                <h6 className="fw-semibold mb-0 text-dark">HR Knowledge Base (FAQ)</h6>
+                            </div>
+
+                            <div className="card-body small">
+
+                                <details className="mb-2">
+                                    <summary className="fw-semibold">How to request leave?</summary>
+                                    <p className="text-muted mt-1">Go to Leave, submit a request, and wait for it to be approved or rejected.</p>
+                                </details>
+
+                                <details className="mb-2">
+                                    <summary className="fw-semibold">How is attendance calculated?</summary>
+                                    <p className="text-muted mt-1">Based on check-in and check-out times.</p>
+                                </details>
+
+                                <details className="mb-2">
+                                    <summary className="fw-semibold">How to request overtime?</summary>
+                                    <p className="text-muted mt-1">Go to Overtime, submit a request, and wait for it to be approved or rejected.</p>
+                                </details>
+
+                                <details className="mb-2">
+                                    <summary className="fw-semibold">How to change personal information?</summary>
+                                    <p className="text-muted mt-1">Go to Employee or Profile, then change the necessary information.</p>
+                                </details>
+
                             </div>
                         </div>
                     </div>
