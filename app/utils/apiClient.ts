@@ -34,36 +34,35 @@ export async function apiFetch(
         const text = await response.text();
         const lower = text.toLowerCase();
 
+        // CHỈ ÁP DỤNG CHO GET
         if (
+            method === "GET" &&
             response.status === 400 &&
             (lower.includes("no ") && lower.includes(" found"))
         ) {
-            console.warn("API: no data → return empty array");
             return [];
         }
 
         if (
+            method === "GET" &&
             response.status === 400 &&
             lower.includes("no") &&
             lower.includes("request")
         ) {
-            console.warn("API: no request data");
             return [];
         }
 
         if (response.status === 401) {
-            console.warn("401 Unauthorized → redirect to login");
             localStorage.removeItem("jwt");
             window.location.href = "/auth/login";
             return null;
         }
 
         if (response.status === 403) {
-            console.warn("403 Forbidden → return null");
             return null;
         }
 
-        // Các lỗi còn lại → throw lỗi thật
+        // CREATE / UPDATE / APPROVE → BẮT BUỘC THROW
         throw new Error(text || `Request failed (${response.status})`);
     }
 

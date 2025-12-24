@@ -131,6 +131,11 @@ export default function EmployeePage() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [showModalPassword, setShowModalPassword] = useState(false);
 
+    const managerEmployee = employees.find(e => e.id === currentUserId);
+    const managerDepartmentId = managerEmployee?.departmentId;
+    const employeeRoleId =
+        roles.find(r => r.name === "Employee")?.id;
+
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (token) {
@@ -185,7 +190,15 @@ export default function EmployeePage() {
     // Mở modal thêm nhân viên
     function openAdd() {
         setModalMode("add");
-        setCurrentEmp({});
+
+        if (currentRole === "Manager") {
+            setCurrentEmp({
+                roleId: employeeRoleId,
+                departmentId: managerDepartmentId,
+            });
+        } else {
+            setCurrentEmp({});
+        }
     }
 
     // Mở modal sửa nhân viên
@@ -727,24 +740,56 @@ export default function EmployeePage() {
                                 {/* Role */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
-                                        <select className="form-control" value={currentEmp.roleId || ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, roleId: Number(e.target.value) })}>
+                                        <select
+                                            className="form-control"
+                                            value={currentEmp.roleId || ""}
+                                            disabled={currentRole === "Manager"}
+                                            onChange={(e) =>
+                                                setCurrentEmp({
+                                                    ...currentEmp,
+                                                    roleId: Number(e.target.value),
+                                                })
+                                            }
+                                        >
                                             <option value="">Select Role</option>
-                                            {roles.map(r => (
-                                                <option key={r.id} value={r.id}>{r.name}</option>
-                                            ))}
+
+                                            {roles
+                                                .filter(r =>
+                                                    currentRole !== "Manager" || r.name === "Employee"
+                                                )
+                                                .map(r => (
+                                                    <option key={r.id} value={r.id}>
+                                                        {r.name}
+                                                    </option>
+                                                ))}
                                         </select>
                                     </div>
                                 </div>
                                 {/* Department */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
-                                        <select className="form-control" value={currentEmp.departmentId || ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, departmentId: Number(e.target.value) })}>
+                                        <select
+                                            className="form-control"
+                                            value={currentEmp.departmentId || ""}
+                                            disabled={currentRole === "Manager"}
+                                            onChange={(e) =>
+                                                setCurrentEmp({
+                                                    ...currentEmp,
+                                                    departmentId: Number(e.target.value),
+                                                })
+                                            }
+                                        >
                                             <option value="">Select Department</option>
-                                            {departments.map(dep => (
-                                                <option key={dep.id} value={dep.id}>{dep.departmentName}</option>
-                                            ))}
+
+                                            {departments
+                                                .filter(d =>
+                                                    currentRole !== "Manager" || d.id === managerDepartmentId
+                                                )
+                                                .map(dep => (
+                                                    <option key={dep.id} value={dep.id}>
+                                                        {dep.departmentName}
+                                                    </option>
+                                                ))}
                                         </select>
                                     </div>
                                 </div>
