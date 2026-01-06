@@ -6,19 +6,22 @@ export async function apiFetch(
     path: string,
     method: string = "GET",
     body?: any,
-    customHeaders?: Record<string, string>
+    customHeaders?: Record<string, string>,
+    requireAuth: boolean = true
 ) {
-    const token = localStorage.getItem("jwt");
-    if (!token) {
-        window.location.href = "/auth/login";
-        throw new Error("Authentication required.");
-    }
-
     const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         ...customHeaders,
     };
+
+    if (requireAuth) {
+        const token = localStorage.getItem("jwt");
+        if (!token) {
+            window.location.href = "/auth/login";
+            throw new Error("Authentication required.");
+        }
+        headers.Authorization = `Bearer ${token}`;
+    }
 
     const url = path.startsWith("http")
         ? path

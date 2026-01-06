@@ -19,48 +19,68 @@ interface JobPostDto {
     postedById?: number;
     postedBy?: string;
     createdAt?: string;
-    status?: number;  
+    status?: number;
 }
 
 export default function JobPostPage() {
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-
     const [jobPosts, setJobPosts] = useState<JobPostDto[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-
     const [requirements, setRequirements] = useState<{ id: number; requirement: string; status: number }[]>([]);
     const [currentPost, setCurrentPost] = useState<JobPostDto | null>(null);
     const [deletedPostId, setDeletedPostId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+    const [currentRole, setCurrentRole] = useState<string>("");
+
+    // Hàm loại bỏ thẻ HTML để hiển thị text thuần trên table
+    const stripHtml = (html: string) => {
+        if (!html) return "";
+        // Sử dụng Regex đơn giản để loại bỏ tags hoặc DOMParser nếu ở client-side
+        return html.replace(/<[^>]*>?/gm, '');
+    };
 
     const filteredJobPosts = (jobPosts ?? []).filter(post =>
         post.title?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-    // Tính tổng số trang
-    const totalPages = Math.ceil(filteredJobPosts.length / itemsPerPage);
 
-    // Tính dữ liệu đang hiển thị theo trang
+    const totalPages = Math.ceil(filteredJobPosts.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredJobPosts.slice(indexOfFirstItem, indexOfLastItem);
-    // ROLE
-    const [currentRole, setCurrentRole] = useState<string>("");
 
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (token) {
             try {
                 const payload = JSON.parse(atob(token.split(".")[1]));
-                const role =
-                    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
+                const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || "";
                 setCurrentRole(role);
             } catch (err) {
                 console.error("Error decoding JWT", err);
             }
         }
+    }, []);
+
+    useEffect(() => {
+        async function loadData() {
+            try {
+                const posts = await apiFetch("/jobpost");
+                const reqs = await apiFetch("/recruitmentrequirement");
+                setJobPosts(Array.isArray(posts) ? posts : []);
+                setRequirements(Array.isArray(reqs) ? reqs : []);
+            } catch (err) {
+                console.warn("JobPostPage load error:", err);
+                setJobPosts([]);
+                setRequirements([]);
+                setError("Failed to load data");
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadData();
     }, []);
 
     function openAdd() {
@@ -72,32 +92,6 @@ export default function JobPostPage() {
         setModalMode("edit");
         setCurrentPost(post);
     }
-
-    // LOAD DATA
-    useEffect(() => {
-        async function loadData() {
-            try {
-                const posts = await apiFetch("/jobpost");
-                const reqs = await apiFetch("/recruitmentrequirement");
-
-                setJobPosts(Array.isArray(posts) ? posts : []);
-                setRequirements(Array.isArray(reqs) ? reqs : []);
-
-            } catch (err) {
-                console.warn("JobPostPage load error:", err);
-                setJobPosts([]);
-                setRequirements([]);
-                setError("Failed to load data");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadData();
-    }, []);
-
-
-    if (loading) return <p>Loading...</p>;
 
     async function handleSave() {
         const token = localStorage.getItem("jwt");
@@ -111,33 +105,28 @@ export default function JobPostPage() {
             const payload = JSON.parse(atob(token.split(".")[1]));
             const empId = payload["employeeId"] || payload["sub"];
 
-            const body =
-                modalMode === "add"
-                    ? {
-                        title: currentPost?.title,
-                        requirementId: currentPost?.requirementId,
-                        content: currentPost?.content,
-                        postedById: empId,
-                    }
-                    : {
-                        id: currentPost?.id,
-                        title: currentPost?.title,
-                        requirementId: currentPost?.requirementId,
-                        content: currentPost?.content,
-                    };
+            const body = modalMode === "add"
+                ? {
+                    title: currentPost?.title,
+                    requirementId: currentPost?.requirementId,
+                    content: currentPost?.content,
+                    postedById: empId,
+                }
+                : {
+                    id: currentPost?.id,
+                    title: currentPost?.title,
+                    requirementId: currentPost?.requirementId,
+                    content: currentPost?.content,
+                };
 
             const method = modalMode === "add" ? "POST" : "PUT";
             const path = modalMode === "add" ? "/jobpost" : `/jobpost/${currentPost?.id}`;
 
             await apiFetch(path, method, body);
-
             toast.success("Job post saved successfully");
-
             const posts = await apiFetch("/jobpost");
             setJobPosts(posts);
-
             (window as any).$("#exampleModal").modal("hide");
-
         } catch (err: unknown) {
             const error = err as Error;
             toast.error(error.message);
@@ -150,31 +139,25 @@ export default function JobPostPage() {
 
     async function handleDelete() {
         if (!deletedPostId) return;
-
         try {
             await apiFetch(`/jobpost/${deletedPostId}`, "DELETE");
-
             toast.success("Job post deleted successfully");
-
             setJobPosts(prev => prev.filter(post => post.id !== deletedPostId));
             setDeletedPostId(null);
-
             (window as any).$("#confirmDeleteModal").modal("hide");
-
         } catch (err: unknown) {
             const error = err as Error;
             toast.error(error.message);
         }
     }
 
-    // JOB POST STATUS
     function renderStatus(status?: number) {
-        if (status === 0)
-            return <span className="badge badge-success">Hiring</span>;
-        if (status === 1)
-            return <span className="badge badge-secondary">Closed</span>;
+        if (status === 0) return <span className="badge badge-success">Hiring</span>;
+        if (status === 1) return <span className="badge badge-secondary">Closed</span>;
         return <span className="badge badge-light">N/A</span>;
     }
+
+    if (loading) return <p>Loading...</p>;
 
     return (
         <div className="section-body">
@@ -182,16 +165,16 @@ export default function JobPostPage() {
                 <div className="d-flex justify-content-between align-items-center">
                     <div></div>
                     {currentRole === "HR" && (
-                    <div className="header-action">
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            data-toggle="modal"
-                            data-target="#exampleModal"
-                            onClick={openAdd}
-                        >
-                            <i className="fa-solid fa-plus mr-2"></i>Add
-                        </button>
+                        <div className="header-action">
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                data-toggle="modal"
+                                data-target="#exampleModal"
+                                onClick={openAdd}
+                            >
+                                <i className="fa-solid fa-plus mr-2"></i>Add
+                            </button>
                         </div>
                     )}
                 </div>
@@ -229,48 +212,28 @@ export default function JobPostPage() {
                                         {currentRole === "HR" && (<th>Action</th>)}
                                     </tr>
                                 </thead>
-
                                 <tbody>
                                     {currentItems.map(post => (
                                         <tr key={post.id}>
-                                            <td>
-                                                <input type="checkbox" />
-                                            </td>
-
+                                            <td><input type="checkbox" /></td>
                                             <td>{post.id}</td>
-
+                                            {/* Hiển thị Plain Text cho Title */}
                                             <td>
-                                                <div
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: truncate(post.title ?? "", 30, { ellipsis: "..." })
-                                                    }}
-                                                />
+                                                {truncate(stripHtml(post.title ?? ""), 30, { ellipsis: "..." })}
                                             </td>
-
+                                            {/* Hiển thị Plain Text cho Content */}
                                             <td>
-                                                <div
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: truncate(post.content ?? "", 40, { ellipsis: "..." })
-                                                    }}
-                                                />
+                                                {truncate(stripHtml(post.content ?? ""), 40, { ellipsis: "..." })}
                                             </td>
-
-                                            <td><div
-                                                dangerouslySetInnerHTML={{
-                                                    __html: truncate(post.requirement ?? "", 30, { ellipsis: "..." })
-                                                }}
-                                            /></td>
+                                            {/* Hiển thị Plain Text cho Requirement */}
+                                            <td>
+                                                {truncate(stripHtml(post.requirement ?? ""), 30, { ellipsis: "..." })}
+                                            </td>
                                             <td>{post.postedBy}</td>
-
                                             <td>
-                                                {post.createdAt
-                                                    ? new Date(post.createdAt).toLocaleDateString("en-CA")
-                                                    : ""}
+                                                {post.createdAt ? new Date(post.createdAt).toLocaleDateString("en-CA") : ""}
                                             </td>
-
-                                            {/* STATUS */}
                                             <td>{renderStatus(post.status)}</td>
-
                                             {currentRole === "HR" && (
                                                 <td>
                                                     <button
@@ -296,75 +259,39 @@ export default function JobPostPage() {
                                 </tbody>
                             </table>
                         </div>
-                        <nav aria-label="Page navigation">
+
+                        {/* Pagination */}
+                        <nav aria-label="Page navigation" className="mt-3">
                             <ul className="pagination mb-0 justify-content-end">
-
-                                {/* Previous */}
                                 <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
-                                    <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>
-                                        Previous
-                                    </a>
+                                    <a className="page-link" onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}>Previous</a>
                                 </li>
-
                                 {(() => {
                                     const pages = [];
-
-                                    // Always show first page
-                                    if (totalPages > 0) {
-                                        pages.push(1);
-                                    }
-
-                                    // If current > 3, show left ellipsis
-                                    if (currentPage > 3) {
-                                        pages.push("left-ellipsis");
-                                    }
-
-                                    // Middle pages (current-1, current, current+1)
+                                    if (totalPages > 0) pages.push(1);
+                                    if (currentPage > 3) pages.push("left-ellipsis");
                                     for (let p = currentPage - 1; p <= currentPage + 1; p++) {
-                                        if (p > 1 && p < totalPages) {
-                                            pages.push(p);
-                                        }
+                                        if (p > 1 && p < totalPages) pages.push(p);
                                     }
-
-                                    // If current < totalPages - 2, show right ellipsis
-                                    if (currentPage < totalPages - 2) {
-                                        pages.push("right-ellipsis");
-                                    }
-
-                                    // Always show last page (if > 1)
-                                    if (totalPages > 1) {
-                                        pages.push(totalPages);
-                                    }
+                                    if (currentPage < totalPages - 2) pages.push("right-ellipsis");
+                                    if (totalPages > 1) pages.push(totalPages);
 
                                     return pages.map((p, idx) => {
                                         if (p === "left-ellipsis" || p === "right-ellipsis") {
-                                            return (
-                                                <li key={idx} className="page-item disabled">
-                                                    <span className="page-link">...</span>
-                                                </li>
-                                            );
+                                            return <li key={idx} className="page-item disabled"><span className="page-link">...</span></li>;
                                         }
-
                                         return (
                                             <li key={idx} className={`page-item ${currentPage === p ? "active" : ""}`}>
-                                                <a className="page-link" onClick={() => setCurrentPage(p)}>
-                                                    {p}
-                                                </a>
+                                                <a className="page-link" onClick={() => setCurrentPage(p as number)}>{p}</a>
                                             </li>
                                         );
                                     });
                                 })()}
-
-                                {/* Next */}
                                 <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
-                                    <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>
-                                        Next
-                                    </a>
+                                    <a className="page-link" onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}>Next</a>
                                 </li>
-
                             </ul>
                         </nav>
-
                     </div>
                 </div>
             </div>
@@ -388,16 +315,15 @@ export default function JobPostPage() {
 
             {/* Add/Edit Modal */}
             <div className="modal fade" id="exampleModal" tabIndex={-1}>
-                <div className="modal-dialog">
+                <div className="modal-dialog modal-lg"> {/* Đổi sang modal-lg để Editor rộng hơn */}
                     <div className="modal-content">
-
                         <div className="modal-header">
                             <h5>{modalMode === "add" ? "Add Post" : "Edit Post"}</h5>
                             <button className="close" data-dismiss="modal">&times;</button>
                         </div>
-
                         <div className="modal-body">
                             <div className="form-group">
+                                <label>Title</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -408,15 +334,15 @@ export default function JobPostPage() {
                             </div>
 
                             <div className="form-group">
+                                <label>Content</label>
                                 <Editor
                                     apiKey="gnul4exykdw4ilbph4qq8itxkat2qdc96w33b7ydazw3m57y"
                                     value={currentPost?.content ?? ""}
                                     init={{
-                                        height: 250,
+                                        height: 300,
                                         menubar: false,
                                         plugins: ["lists", "link", "code", "table"],
-                                        toolbar:
-                                            "undo redo | bold italic underline | bullist numlist | link | code | table",
+                                        toolbar: "undo redo | bold italic underline | bullist numlist | link | code | table",
                                     }}
                                     onEditorChange={(newValue) =>
                                         setCurrentPost(prev => ({ ...prev, content: newValue }))
@@ -425,6 +351,7 @@ export default function JobPostPage() {
                             </div>
 
                             <div className="form-group">
+                                <label>Requirement</label>
                                 <select
                                     className="form-control"
                                     value={currentPost?.requirementId ?? ""}
@@ -441,12 +368,10 @@ export default function JobPostPage() {
                                 </select>
                             </div>
                         </div>
-
                         <div className="modal-footer">
                             <button className="btn btn-secondary" data-dismiss="modal">Close</button>
                             <button className="btn btn-primary" onClick={handleSave}>Save changes</button>
                         </div>
-
                     </div>
                 </div>
             </div>

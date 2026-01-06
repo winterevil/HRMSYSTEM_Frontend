@@ -1,10 +1,10 @@
 ﻿'use client';
 import React, { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/app/utils/apiClient";
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import { toPng } from "html-to-image";
+//import FullCalendar from '@fullcalendar/react';
+//import dayGridPlugin from '@fullcalendar/daygrid';
+//import interactionPlugin from '@fullcalendar/interaction';
+//import { toPng } from "html-to-image";
 import ExcelJS from "exceljs";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer, toast } from "react-toastify";
@@ -13,7 +13,7 @@ import { saveAs } from "file-saver";
 
 export default function ProfilePage() {
     const [user, setUser] = useState<any>(null);
-    const calendarCardRef = useRef<HTMLDivElement>(null);
+    //const calendarCardRef = useRef<HTMLDivElement>(null);
     const [timeline, setTimeline] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>({});
     const [visibleDays, setVisibleDays] = useState(3);
@@ -48,16 +48,16 @@ export default function ProfilePage() {
         );
     };
 
-    const toggleFullscreen = () => {
-        const elem = calendarCardRef.current;
-        if (!elem) return;
+    //const toggleFullscreen = () => {
+    //    const elem = calendarCardRef.current;
+    //    if (!elem) return;
 
-        if (!document.fullscreenElement) {
-            elem.requestFullscreen().catch(err => console.error(err));
-        } else {
-            document.exitFullscreen();
-        }
-    };
+    //    if (!document.fullscreenElement) {
+    //        elem.requestFullscreen().catch(err => console.error(err));
+    //    } else {
+    //        document.exitFullscreen();
+    //    }
+    //};
 
     const groupByDate = (activities: any[]) => {
         return activities.reduce((acc: any, item) => {
@@ -72,25 +72,25 @@ export default function ProfilePage() {
             .flatMap(date => grouped[date]);
     };
 
-    const downloadPNG = () => {
-        if (!calendarCardRef.current) {
-            toast.error("Calendar frame not found!");
-            return;
-        }
+    //const downloadPNG = () => {
+    //    if (!calendarCardRef.current) {
+    //        toast.error("Calendar frame not found!");
+    //        return;
+    //    }
 
-        toPng(calendarCardRef.current)
-            .then((dataUrl) => {
-                const link = document.createElement("a");
-                link.href = dataUrl;
-                link.download = "calendar.png";
-                link.click();
-                toast.success("Calendar downloaded successfully!");
-            })
-            .catch((err) => {
-                console.error("Error generating PNG:", err);
-                toast.error("Failed to download calendar!");
-            });
-    };
+    //    toPng(calendarCardRef.current)
+    //        .then((dataUrl) => {
+    //            const link = document.createElement("a");
+    //            link.href = dataUrl;
+    //            link.download = "calendar.png";
+    //            link.click();
+    //            toast.success("Calendar downloaded successfully!");
+    //        })
+    //        .catch((err) => {
+    //            console.error("Error generating PNG:", err);
+    //            toast.error("Failed to download calendar!");
+    //        });
+    //};
     const downloadTimelineWord = async () => {
         try {
             const flatTimeline = flattenTimeline(timeline);
@@ -727,11 +727,11 @@ export default function ProfilePage() {
                 <div className="row clearfix">
                     <div className="col-12">
                         <ul className="nav nav-tabs mb-3" id="pills-tab" role="tablist">
+                            {/*<li className="nav-item">*/}
+                            {/*    <a className="nav-link active" id="pills-calendar-tab" data-toggle="pill" href="#pills-calendar" role="tab" aria-controls="pills-calendar" aria-selected="false">Calendar</a>*/}
+                            {/*</li>*/}
                             <li className="nav-item">
-                                <a className="nav-link active" id="pills-calendar-tab" data-toggle="pill" href="#pills-calendar" role="tab" aria-controls="pills-calendar" aria-selected="false">Calendar</a>
-                            </li>
-                            <li className="nav-item">
-                                <a className="nav-link" id="pills-timeline-tab" data-toggle="pill" href="#pills-timeline" role="tab" aria-controls="pills-timeline" aria-selected="true">Timeline</a>
+                                <a className="nav-link active" id="pills-timeline-tab" data-toggle="pill" href="#pills-timeline" role="tab" aria-controls="pills-timeline" aria-selected="false">Timeline</a>
                             </li>
                             <li className="nav-item">
                                 <a className="nav-link" id="pills-profile-tab" data-toggle="pill" href="#pills-profile" role="tab" aria-controls="pills-profile" aria-selected="false">Profile</a>
@@ -740,34 +740,34 @@ export default function ProfilePage() {
                     </div>
                     <div className="col-lg-8 col-md-12">
                         <div className="tab-content" id="pills-tabContent">
-                            <div className="tab-pane fade show active" id="pills-calendar" role="tabpanel" aria-labelledby="pills-calendar-tab">
-                                <div className="card" ref={calendarCardRef}>
-                                    <div className="card-header bline">
-                                        <h3 className="card-title">Calendar</h3>
-                                        <div className="card-options">
-                                            <a onClick={toggleFullscreen} className="card-options-fullscreen" style={{ cursor: "pointer" }}>
-                                                <i className="fa fa-maximize"></i>
-                                            </a>
-                                            <a onClick={downloadPNG} className="card-options" style={{ cursor: "pointer" }}>
-                                                <i className="fa fa-cloud-download"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <div className="card-body">
-                                        <FullCalendar
-                                            plugins={[dayGridPlugin, interactionPlugin]}
-                                            initialView="dayGridMonth"
-                                            height="auto"
-                                            headerToolbar={{
-                                                left: 'prev,next today',
-                                                center: 'title',
-                                                right: ''
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="tab-pane fade" id="pills-timeline" role="tabpanel" aria-labelledby="pills-timeline-tab">
+                            {/*<div className="tab-pane fade show active" id="pills-calendar" role="tabpanel" aria-labelledby="pills-calendar-tab">*/}
+                            {/*    <div className="card" ref={calendarCardRef}>*/}
+                            {/*        <div className="card-header bline">*/}
+                            {/*            <h3 className="card-title">Calendar</h3>*/}
+                            {/*            <div className="card-options">*/}
+                            {/*                <a onClick={toggleFullscreen} className="card-options-fullscreen" style={{ cursor: "pointer" }}>*/}
+                            {/*                    <i className="fa fa-maximize"></i>*/}
+                            {/*                </a>*/}
+                            {/*                <a onClick={downloadPNG} className="card-options" style={{ cursor: "pointer" }}>*/}
+                            {/*                    <i className="fa fa-cloud-download"></i>*/}
+                            {/*                </a>*/}
+                            {/*            </div>*/}
+                            {/*        </div>*/}
+                            {/*        <div className="card-body">*/}
+                            {/*            <FullCalendar*/}
+                            {/*                plugins={[dayGridPlugin, interactionPlugin]}*/}
+                            {/*                initialView="dayGridMonth"*/}
+                            {/*                height="auto"*/}
+                            {/*                headerToolbar={{*/}
+                            {/*                    left: 'prev,next today',*/}
+                            {/*                    center: 'title',*/}
+                            {/*                    right: ''*/}
+                            {/*                }}*/}
+                            {/*            />*/}
+                            {/*        </div>*/}
+                            {/*    </div>*/}
+                            {/*</div>*/}
+                            <div className="tab-pane fade show active" id="pills-timeline" role="tabpanel" aria-labelledby="pills-timeline-tab">
                                 <div className="card">
                                     <div className="card-header border-bottom">
                                         <h3 className="card-title">Activity</h3>

@@ -1,6 +1,23 @@
-import React from 'react';
+"use client";
+import React, { useState } from 'react';
+import { apiFetch } from "@/app/utils/apiClient";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer, toast } from "react-toastify";
 
 export default function ForgotPasswordPage() {
+    const [email, setEmail] = useState("");
+
+    const submit = async () => {
+        await apiFetch(
+            "/auth/forgot-password",
+            "POST",
+            { email },
+            undefined,
+            false 
+        );
+
+        toast.success("If email exists, reset link has been sent.");
+    };
     return (
         <div className="auth">
             <div className="auth_left">
@@ -13,10 +30,11 @@ export default function ForgotPasswordPage() {
                         <p className="text-muted">Enter your email address and your password will be reset and emailed to you.</p>
                         <div className="form-group">
                             <label className="form-label" htmlFor="exampleInputEmail1">Email address</label>
-                            <input type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email"/>
+                            <input type="email" className="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter email" value={email}
+                                onChange={e => setEmail(e.target.value)} />
                         </div>
                         <div className="form-footer">
-                            <button type="submit" className="btn btn-primary btn-block">Send me new password</button>
+                            <button type="button" className="btn btn-primary btn-block" onClick={submit}>Send Reset Link</button>
                         </div>
                     </div>
                     <div className="text-center text-muted">
@@ -51,7 +69,7 @@ export default function ForgotPasswordPage() {
                     </div>
                 </div>
             </div>
+            <ToastContainer />
         </div>
-
     );
 }
