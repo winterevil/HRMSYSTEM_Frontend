@@ -1,32 +1,49 @@
 ﻿"use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "@/app/utils/apiClient";
-
+import { apiFetch } from "@/app/utils/apiClient";
+type Notification = {
+    id: number;
+    title: string;
+    content: string;
+    isRead: boolean;
+    createdAt: string;
+};
 export default function PageTop() {
     const router = useRouter();
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [loadingNoti, setLoadingNoti] = useState(false);
 
     const handleLogout = async () => {
         try {
-            const token = localStorage.getItem("jwt");
-            if (token) {
-                await fetch(`${API_BASE_URL}/auth/logout`, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                });
-            }
+            await apiFetch("/auth/logout", "POST", null, undefined, true);
         } catch (error) {
             console.error("Logout error:", error);
         } finally {
-            // Xoá token và chuyển hướng
             localStorage.removeItem("jwt");
             document.cookie = "jwt=; path=/; max-age=0";
+
             router.push("/auth/login");
         }
     };
+    useEffect(() => {
+        const loadNotifications = async () => {
+            try {
+                setLoadingNoti(true);
+
+                const data = await apiFetch("/notification", "GET");
+
+                setNotifications(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error("Load notifications failed", e);
+                setNotifications([]);
+            } finally {
+                setLoadingNoti(false);
+            }
+        };
+
+        loadNotifications();
+    }, []);
 
     return (
         <div id="page_top" className="section-body top_dark sticky-top">
@@ -56,42 +73,113 @@ export default function PageTop() {
                             <div className="dropdown d-flex">
                                 <a className="nav-link icon d-none d-md-flex btn btn-default btn-icon ml-1" data-toggle="dropdown">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="icon icon-tabler icons-tabler-outline icon-tabler-bell"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>
-                                    <span className="badge badge-primary nav-unread"></span>
+                                    {notifications.some(n => !n.isRead) && (
+                                        <span className="badge badge-primary nav-unread">
+                                            {notifications.filter(n => !n.isRead).length}
+                                        </span>
+                                    )}
                                 </a>
-                                <div className="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
-                                    <ul className="list-unstyled feeds_widget">
-                                        <li>
-                                            <div className="feeds-left"><i className="fa fa-check"></i></div>
-                                            <div className="feeds-body">
-                                                <h4 className="title text-danger">Issue Fixed <small className="float-right text-muted">11:05</small></h4>
-                                                <small>WE have fix all Design bug with Responsive</small>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="feeds-left"><i className="fa fa-user"></i></div>
-                                            <div className="feeds-body">
-                                                <h4 className="title">New User <small className="float-right text-muted">10:45</small></h4>
-                                                <small>I feel great! Thanks team</small>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="feeds-left"><i className="fa fa-thumbs-up"></i></div>
-                                            <div className="feeds-body">
-                                                <h4 className="title">7 New Feedback <small className="float-right text-muted">Today</small></h4>
-                                                <small>It will give a smart finishing to your site</small>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div className="feeds-left"><i className="fa fa-question-circle"></i></div>
-                                            <div className="feeds-body">
-                                                <h4 className="title text-warning">Server Warning <small className="float-right text-muted">10:50</small></h4>
-                                                <small>Your connection is not private</small>
-                                            </div>
-                                        </li>
+                                <div
+                                    className="dropdown-menu dropdown-menu-right dropdown-menu-arrow"
+                                    style={{
+                                        width: "420px",
+                                        maxWidth: "90vw",
+                                    }}
+                                >
+
+                                    <ul className="list-unstyled feeds_widget mb-0">
+
+                                        {loadingNoti && (
+                                            <li className="text-center text-muted py-3">
+                                                Loading...
+                                            </li>
+                                        )}
+
+                                        {!loadingNoti && notifications.length === 0 && (
+                                            <li className="text-center text-muted py-3">
+                                                No notifications
+                                            </li>
+                                        )}
+
+                                        {notifications.map(n => (
+                                            <li
+                                                key={n.id}
+                                                className={!n.isRead ? "bg-light" : ""}
+                                                style={{ cursor: "pointer" }}
+                                            >
+                                                <div className="feeds-left">
+                                                    <i className="fa fa-bell"></i>
+                                                </div>
+
+                                                <div className="feeds-body">
+                                                    <h4
+                                                        className={`title ${!n.isRead ? "text-primary" : ""}`}
+                                                        style={{
+                                                            whiteSpace: "nowrap",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            maxWidth: "320px",
+                                                        }}
+                                                    >
+                                                        {n.title}
+                                                        <small className="float-right text-muted">
+                                                            {new Date(n.createdAt).toLocaleTimeString()}
+                                                        </small>
+                                                    </h4>
+
+                                                    <small
+                                                        style={{
+                                                            display: "block",
+                                                            whiteSpace: "normal",
+                                                            wordBreak: "break-word",
+                                                            maxHeight: "48px",
+                                                            overflow: "hidden",
+                                                        }}
+                                                    >
+                                                        {n.content}
+                                                    </small>
+
+                                                    {n.content.length > 120 && (
+                                                        <div
+                                                            className="text-primary"
+                                                            style={{ fontSize: "12px", cursor: "pointer" }}
+                                                        >
+                                                            View more
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </li>
+
+                                        ))}
                                     </ul>
+
                                     <div className="dropdown-divider"></div>
-                                    <a href="#" className="dropdown-item text-center text-muted-dark readall">Mark all as read</a>
+
+                                    <a
+                                        href="#"
+                                        className="dropdown-item text-center text-muted-dark readall"
+                                        onClick={async () => {
+                                            const token = localStorage.getItem("jwt");
+                                            if (!token) return;
+
+                                            await Promise.all(
+                                                notifications
+                                                    .filter(n => !n.isRead)
+                                                    .map(n =>
+                                                        apiFetch(`/notification/${n.id}/read`, "POST")
+                                                    )
+                                            );
+
+                                            setNotifications(prev =>
+                                                prev.map(n => ({ ...n, isRead: true }))
+                                            );
+
+                                        }}
+                                    >
+                                        Mark all as read
+                                    </a>
                                 </div>
+
                             </div>
                             <div className="dropdown d-flex">
                                 <a className="nav-link icon d-none d-md-flex btn btn-default btn-icon ml-1" data-toggle="dropdown">
@@ -102,7 +190,7 @@ export default function PageTop() {
                                     <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-gear"></i> Settings</a>
                                     <div className="dropdown-divider"></div>
                                     <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-circle-question"></i> Need help?</a>
-                                    <a className="dropdown-item" href="#"><i className="dropdown-icon fa-solid fa-lock-open"></i> Forgot Password</a>
+                                    <a className="dropdown-item" href="/auth/forgot-password"><i className="dropdown-icon fa-solid fa-lock-open"></i> Forgot Password</a>
                                     <a className="dropdown-item" href="#" onClick={handleLogout}><i className="dropdown-icon fa-solid fa-right-from-bracket"></i> Sign out</a>
                                 </div>
                             </div>
