@@ -6,8 +6,8 @@ import { apiFetch } from "@/app/utils/apiClient";
 export default function HeaderTop() {
     const [user, setUser] = useState<any>(null);
     const [offcanvas, setOffcanvas] = useState(false);
+    const [unreadTotal, setUnreadTotal] = useState(0);
 
-    // Toggle menu
     const toggleMenu = (e: any) => {
         e.preventDefault();
         e.stopPropagation();
@@ -15,14 +15,12 @@ export default function HeaderTop() {
     };
 
     useEffect(() => {
-        if (offcanvas) {
-            document.body.classList.add("offcanvas-active");
-        } else {
-            document.body.classList.remove("offcanvas-active");
-        }
+        document.body.classList.toggle("offcanvas-active", offcanvas);
     }, [offcanvas]);
 
-    // Decode JWT
+    /* =========================
+       DECODE JWT
+    ========================= */
     useEffect(() => {
         const token = localStorage.getItem("jwt");
         if (!token) return;
@@ -48,14 +46,15 @@ export default function HeaderTop() {
         }
     }, []);
 
-    // load employee info
+    /* =========================
+       LOAD USER INFO
+    ========================= */
     useEffect(() => {
         if (!user?.id) return;
 
         apiFetch("/employee")
             .then((res) => {
                 const list = res?.emp || res || [];
-
                 const me = list.find(
                     (e: any) => e.id === user.id || e.employeeId === user.id
                 );
@@ -69,52 +68,127 @@ export default function HeaderTop() {
                     }));
                 }
             })
-            .catch((err) => console.error("Employee fetch error:", err));
+            .catch(console.error);
     }, [user?.id]);
+
+    /* =========================
+       LOAD UNREAD CHAT COUNT
+    ========================= */
+    const loadUnreadCount = async () => {
+        try {
+            const res = await apiFetch("/chat/available-users");
+            if (!Array.isArray(res)) return;
+
+            const total = res.reduce(
+                (sum: number, u: any) => sum + (u.unreadCount || 0),
+                0
+            );
+
+            setUnreadTotal(total);
+        } catch { }
+    };
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        loadUnreadCount();
+    }, [user?.id]);
+    useEffect(() => {
+        const handler = () => loadUnreadCount();
+
+        window.addEventListener("chat-unread-updated", handler);
+        return () =>
+            window.removeEventListener("chat-unread-updated", handler);
+    }, []);
 
     return (
         <div id="header_top" className="header_top">
             <div className="container">
                 <div className="hleft">
-                    <a className="header-brand" href="/main/hrms/dashboard"><img src="/assets/images/logo.jpeg" alt="Logo" className="brand-logo" /></a>
+                    <a className="header-brand" href="/main/hrms/dashboard">
+                        <img src="/assets/images/logo.jpeg" alt="Logo" className="brand-logo" />
+                    </a>
+
                     <div className="dropdown">
-                        <a href="#" className="nav-link icon" data-toggle="tooltip" data-placement="right" title="Search">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
+                        <a
+                            href="/main/hrms/calendar"
+                            className="nav-link icon app_inbox xs-hide"
+                            title="Calendar"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round" >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                                <path d="M16 3v4" /><path d="M8 3v4" />
+                                <path d="M4 11h16" /><path d="M7 14h.013" />
+                                <path d="M10.01 14h.005" /><path d="M13.01 14h.005" />
+                                <path d="M16.015 14h.005" /><path d="M13.015 17h.005" />
+                                <path d="M7.01 17h.005" /><path d="M10.01 17h.005" />
+                            </svg>
                         </a>
-                        <a href="/main/hrms/calendar" className="nav-link icon app_inbox xs-hide" data-toggle="tooltip" data-placement="right" title="Calendar">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M7 14h.013" /><path d="M10.01 14h.005" /><path d="M13.01 14h.005" /><path d="M16.015 14h.005" /><path d="M13.015 17h.005" /><path d="M7.01 17h.005" /><path d="M10.01 17h.005" /></svg>
-                        </a>
-                        <a href="/main/hrms/chat" className="nav-link icon xs-hide" data-toggle="tooltip" data-placement="right" title="Chat">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" /><path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" /></svg>
+
+                        {/* ================= CHAT ICON (GIỮ NGUYÊN SVG) ================= */}
+                        <a
+                            href="/main/hrms/chat"
+                            className="nav-link icon xs-hide"
+                            title="Chat"
+                            style={{ position: "relative" }}
+                        >
+                            {/* ✅ SVG ICON GỐC – KHÔNG ĐỔI */}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
+                                <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
+                            </svg>
+
+                            {/* 🔴 BADGE CHƯA ĐỌC */}
+                            {unreadTotal > 0 && (
+                                <span
+                                    style={{
+                                        position: "absolute",
+                                        top: -4,
+                                        right: -6,
+                                        minWidth: 18,
+                                        height: 18,
+                                        padding: "0 5px",
+                                        borderRadius: 9,
+                                        background: "#e53935",
+                                        color: "#fff",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        lineHeight: "18px",
+                                        boxShadow: "0 0 0 2px #fff"
+                                    }}
+                                >
+                                    {unreadTotal > 9 ? "9+" : unreadTotal}
+                                </span>
+                            )}
                         </a>
                     </div>
                 </div>
+
                 <div className="hright mb-5">
                     <div className="dropdown">
-                        {/*<a href="#" className="nav-link icon theme_btn" data-toggle="tooltip" data-placement="right" title="Themes">*/}
-                        {/*    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 3m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" /><path d="M19 6h1a2 2 0 0 1 2 2a5 5 0 0 1 -5 5l-5 0v2" /><path d="M10 15m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z" /></svg>*/}
-                        {/*</a>*/}
-                        {/*<a href="#"*/}
-                        {/*    onClick={(e) => e.preventDefault()} className="nav-link user_btn" data-toggle="tooltip" data-placement="right" title="User Menu" ><div className="avatar"*/}
-                        {/*        style={{*/}
-                        {/*            backgroundColor: "#4e73df",*/}
-                        {/*            color: "white",*/}
-                        {/*        }}>*/}
-                        {/*        {(user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U")}*/}
-                        {/*    </div>*/}
-                        {/*</a>*/}
-                        {/*<a*/}
-                        {/*    href="#"*/}
-                        {/*    className="nav-link icon menu_toggle"*/}
-                        {/*    onClick={(e) => {*/}
-                        {/*        e.preventDefault();*/}
-                        {/*        document.body.classList.toggle("offcanvas-active");*/}
-                        {/*    }}*/}
-                        {/*    data-toggle="tooltip"*/}
-                        {/*    title="Toggle"*/}
-                        {/*>*/}
-                        {/*    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 6h16" /><path d="M7 12h13" /><path d="M10 18h10" /></svg>*/}
-                        {/*</a>*/}
                         <a
                             href="#"
                             onClick={(e) => {
@@ -124,13 +198,16 @@ export default function HeaderTop() {
                             }}
                             className="nav-link user_btn"
                         >
-                            <div className="avatar"
+                            <div
+                                className="avatar"
                                 style={{
                                     backgroundColor: "#4e73df",
                                     color: "white"
                                 }}
                             >
-                                {(user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U")}
+                                {(user?.fullName
+                                    ? user.fullName.charAt(0).toUpperCase()
+                                    : "U")}
                             </div>
                         </a>
 

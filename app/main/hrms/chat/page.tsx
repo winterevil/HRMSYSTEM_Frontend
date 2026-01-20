@@ -78,6 +78,7 @@ export default function ChatPage() {
             setConversationId(res.conversationId);
 
             await apiFetch(`/chat/${res.conversationId}/mark-read`, "POST");
+            window.dispatchEvent(new Event("chat-unread-updated"));
             loadUsers();
         } catch {
             toast.error("Action failed");
@@ -123,9 +124,16 @@ export default function ChatPage() {
                 .withAutomaticReconnect()
                 .build();
 
-            conn.on("ReceiveMessage", msg => {
+            conn.on("ReceiveMessage", async (msg) => {
                 setMessages(prev => [...prev, msg]);
-                loadUsers(); // update unread
+
+                if (msg.senderId !== currentUser?.id) {
+                    await apiFetch(
+                        `/chat/${conversationId}/mark-read`,
+                        "POST"
+                    );
+                    loadUsers();
+                }
             });
 
             await conn.start();
@@ -161,6 +169,7 @@ export default function ChatPage() {
                     overflow: "hidden"
                 }}
             >
+                {/* CHAT */}
                 <div
                     className="card chat_box"
                     style={{
@@ -217,39 +226,30 @@ export default function ChatPage() {
                     </div>
 
                     {conversationId && (
-                        <div
-                            style={{
-                                display: "flex",
-                                padding: 10,
-                                borderTop: "1px solid #ddd"
-                            }}
-                        >
+                        <div style={{ display: "flex", padding: 10, borderTop: "1px solid #ddd" }}>
                             <input
                                 className="form-control"
                                 value={messageText}
                                 onChange={e => setMessageText(e.target.value)}
-                                onKeyDown={e =>
-                                    e.key === "Enter" && sendMessage()
-                                }
+                                onKeyDown={e => e.key === "Enter" && sendMessage()}
                                 placeholder="Type message..."
                             />
-                            <button
-                                className="btn btn-primary ml-2"
-                                onClick={sendMessage}
-                            >
+                            <button className="btn btn-primary ml-2" onClick={sendMessage}>
                                 Send
                             </button>
                         </div>
                     )}
                 </div>
 
+                {/* USER LIST */}
                 <div
                     className="card chat_list"
                     style={{
                         flex: 1,
                         display: "flex",
                         flexDirection: "column",
-                        minHeight: 0
+                        minHeight: 0,
+                        overflow: "hidden"
                     }}
                 >
                     <div className="card-header border-bottom">
@@ -274,9 +274,7 @@ export default function ChatPage() {
                                         <span>{r.fromEmployeeName}</span>
                                         <button
                                             className="btn btn-sm btn-primary"
-                                            onClick={() =>
-                                                approveRequest(r.requestId)
-                                            }
+                                            onClick={() => approveRequest(r.requestId)}
                                         >
                                             Approve
                                         </button>
@@ -303,10 +301,24 @@ export default function ChatPage() {
                                     <small className="text-muted">{u.role}</small>
                                 </div>
 
-                                <div style={{ display: "flex", gap: 6 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     {u.unreadCount > 0 && (
-                                        <span className="badge badge-danger">
-                                            {u.unreadCount}
+                                        <span
+                                            style={{
+                                                minWidth: 20,
+                                                height: 20,
+                                                padding: "0 6px",
+                                                borderRadius: 10,
+                                                background: "#e53935",
+                                                color: "#fff",
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center"
+                                            }}
+                                        >
+                                            {u.unreadCount > 9 ? "9+" : u.unreadCount}
                                         </span>
                                     )}
 
@@ -325,18 +337,14 @@ export default function ChatPage() {
                                         </span>
                                     )}
 
-                                    {!u.canChatDirect &&
-                                        !u.isPending &&
-                                        u.needApproval && (
-                                            <button
-                                                className="btn btn-sm btn-warning"
-                                                onClick={() =>
-                                                    handleSelectUser(u)
-                                                }
-                                            >
-                                                Request
-                                            </button>
-                                        )}
+                                    {!u.canChatDirect && !u.isPending && u.needApproval && (
+                                        <button
+                                            className="btn btn-sm btn-warning"
+                                            onClick={() => handleSelectUser(u)}
+                                        >
+                                            Request
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
