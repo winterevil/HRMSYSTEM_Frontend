@@ -22,12 +22,13 @@ export default function ProfilePage() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
     const [statuses] = useState([
-        { value: 0, label: "Active" },
-        { value: 1, label: "OnLeave" },
-        { value: 2, label: "Resigned" },
-        { value: 3, label: "Retired" },
-        { value: 4, label: "Probation" },
+        { value: "Active", label: "Active" },
+        { value: "OnLeave", label: "On Leave" },
+        { value: "Resigned", label: "Resigned" },
+        { value: "Retired", label: "Retired" },
+        { value: "Probation", label: "Probation" },
     ]);
+
     const [stats, setStats] = useState({
         totalHours: 0,
         totalLeave: 0,
@@ -967,14 +968,19 @@ export default function ProfilePage() {
                                                 <select
                                                     className="form-control"
                                                     disabled={!isHR}
-                                                    value={profile.status ?? ""}
-                                                    onChange={(e) => setProfile({ ...profile, status: Number(e.target.value) })}
+                                                    value={profile.status || ""}
+                                                    onChange={(e) =>
+                                                        setProfile({ ...profile, status: e.target.value })
+                                                    }
                                                 >
                                                     <option value="">Select Status</option>
                                                     {statuses.map(s => (
-                                                        <option key={s.value} value={s.value}>{s.label}</option>
+                                                        <option key={s.value} value={s.value}>
+                                                            {s.label}
+                                                        </option>
                                                     ))}
                                                 </select>
+
                                             </div>
                                             <div className="col-md-12 mt-4">
                                                 <h5 className="mb-3">Change Password</h5>

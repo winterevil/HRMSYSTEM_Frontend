@@ -10,19 +10,21 @@ export default function UserPanel() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [employeeTypes, setEmployeeTypes] = useState<any[]>([]);
     const [statuses] = useState([
-        { value: 0, label: "Active" },
-        { value: 1, label: "OnLeave" },
-        { value: 2, label: "Resigned" },
-        { value: 3, label: "Retired" },
-        { value: 4, label: "Probation" },
+        { value: "Active", label: "Active" },
+        { value: "OnLeave", label: "On Leave" },
+        { value: "Resigned", label: "Resigned" },
+        { value: "Retired", label: "Retired" },
+        { value: "Probation", label: "Probation" },
     ]);
+
     const statusTextColors: any = {
-        0: "text-success",     // Active
-        1: "text-warning",     // OnLeave
-        2: "text-danger",      // Resigned
-        3: "text-secondary",   // Retired
-        4: "text-info",        // Probation
+        Active: "text-success",
+        OnLeave: "text-warning",
+        Resigned: "text-danger",
+        Retired: "text-secondary",
+        Probation: "text-info",
     };
+
     const currentStatus = statuses.find(s => s.value === profile?.status);
     const isCurrentMonth = (dateStr: string) => {
         const d = new Date(dateStr);

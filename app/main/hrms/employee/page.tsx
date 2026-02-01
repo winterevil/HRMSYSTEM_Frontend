@@ -18,8 +18,11 @@ interface EmployeeDto {
     roleName?: string;
     departmentId?: number;
     employeeTypeId?: number;
-    status?: number;
+    status?: string;
     createdAt?: string;
+
+    isDeleted?: boolean;
+    deletedAt?: string;
 }
 
 // Định nghĩa kiểu cho sparkline
@@ -129,7 +132,6 @@ export default function EmployeePage() {
     const [currentRole, setCurrentRole] = useState<string>("");
     const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-    const [showModalPassword, setShowModalPassword] = useState(false);
 
     const managerEmployee = employees.find(e => e.id === currentUserId);
     const managerDepartmentId = managerEmployee?.departmentId;
@@ -180,11 +182,11 @@ export default function EmployeePage() {
 
     // Các trạng thái nhân viên
     const statuses = [
-        { value: 0, label: "Active", className: "badge badge-success" },
-        { value: 1, label: "OnLeave", className: "badge badge-warning" },
-        { value: 2, label: "Resigned", className: "badge badge-danger" },
-        { value: 3, label: "Retired", className: "badge badge-secondary" },
-        { value: 4, label: "Probation", className: "badge badge-info" },
+        { value: "Active", label: "Active", className: "badge badge-success" },
+        { value: "OnLeave", label: "OnLeave", className: "badge badge-warning" },
+        { value: "Resigned", label: "Resigned", className: "badge badge-danger" },
+        { value: "Retired", label: "Retired", className: "badge badge-secondary" },
+        { value: "Probation", label: "Probation", className: "badge badge-info" },
     ];
 
     // Mở modal thêm nhân viên
@@ -213,7 +215,7 @@ export default function EmployeePage() {
         async function loadData() {
             try {
                 const [emps, rolesData, deps, types] = await Promise.all([
-                    apiFetch("/employee"),
+                    apiFetch("/employee/all-with-deleted"),
                     apiFetch("/role"),
                     apiFetch("/department"),
                     apiFetch("/employeetype"),
@@ -354,7 +356,7 @@ export default function EmployeePage() {
             });
 
             // Cập nhật lại danh sách
-            setEmployees(employees.filter(emp => emp.id !== deleteEmpId));
+            setEmployees(await apiFetch("/employee/all-with-deleted"));
             setDeleteEmpId(null);
 
             (window as any).$("#confirmDeleteModal").modal("hide");
@@ -365,6 +367,11 @@ export default function EmployeePage() {
                 autoClose: 3000,
             });
         }
+    }
+    async function handleRestore(id: number) {
+        await apiFetch(`/employee/restore/${id}`, "POST");
+        toast.success("Employee restored successfully");
+        setEmployees(await apiFetch("/employee/all-with-deleted"));
     }
 
     return (
@@ -511,7 +518,7 @@ export default function EmployeePage() {
                                                     {/* Hiển thị trạng thái với màu sắc */}
                                                     <td>
                                                         {(() => {
-                                                            const status = statuses.find((s) => s.value === emp.status);
+                                                            const status = statuses.find(s => s.value === emp.status);
                                                             return status ? (
                                                                 <span className={status.className}>{status.label}</span>
                                                             ) : (
@@ -521,12 +528,41 @@ export default function EmployeePage() {
                                                     </td>
                                                     <td>
                                                         {/*<button type="button" className="btn btn-icon btn-sm" title="View"><i className="fa fa-eye"></i></button>*/}
-                                                        {/* Nút sửa mở modal và truyền dữ liệu nhân viên hiện tại */}
-                                                        <button type="button" className="btn btn-icon btn-sm" title="Edit" data-toggle="modal" data-target="#exampleModal" onClick={() => openEdit(emp)}><i className="fa fa-edit"></i></button>
-                                                        {/* Nút xóa mở modal xác nhận xóa */}
-                                                        {/* Chỉ hiện nút xóa nếu không phải Manager, Employee */}
-                                                        {currentRole !== "Manager" && currentRole !== "Employee" && (
-                                                            <button type="button" className="btn btn-icon btn-sm js-sweetalert" title="Delete" data-type="confirm" data-toggle="modal" data-target="#confirmDeleteModal" onClick={() => openDelete(emp.id!)}><i className="fa-solid fa-trash"></i></button>
+                                                        {!emp.isDeleted && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-icon btn-sm"
+                                                                title="Edit"
+                                                                data-toggle="modal"
+                                                                data-target="#exampleModal"
+                                                                onClick={() => openEdit(emp)}
+                                                            >
+                                                                <i className="fa fa-edit"></i>
+                                                            </button>
+                                                        )}
+
+                                                        {!emp.isDeleted && currentRole !== "Manager" && currentRole !== "Employee" && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-icon btn-sm"
+                                                                title="Delete"
+                                                                data-toggle="modal"
+                                                                data-target="#confirmDeleteModal"
+                                                                onClick={() => openDelete(emp.id!)}
+                                                            >
+                                                                <i className="fa-solid fa-trash"></i>
+                                                            </button>
+                                                        )}
+
+                                                        {emp.isDeleted && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-icon btn-sm text-success"
+                                                                title="Restore"
+                                                                onClick={() => handleRestore(emp.id!)}
+                                                            >
+                                                                <i className="fa fa-undo"></i>
+                                                            </button>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -808,13 +844,21 @@ export default function EmployeePage() {
                                 {/* Status */}
                                 <div className="col-md-6 col-sm-6">
                                     <div className="form-group">
-                                        <select className="form-control" value={currentEmp.status ?? ""}
-                                            onChange={(e) => setCurrentEmp({ ...currentEmp, status: Number(e.target.value) })}>
+                                        <select
+                                            className="form-control"
+                                            value={currentEmp.status || ""}
+                                            onChange={(e) =>
+                                                setCurrentEmp({ ...currentEmp, status: e.target.value })
+                                            }
+                                        >
                                             <option value="">Select Status</option>
-                                            {statuses.map(status => (
-                                                <option key={status.value} value={status.value}>{status.label}</option>
+                                            {statuses.map(s => (
+                                                <option key={s.value} value={s.value}>
+                                                    {s.label}
+                                                </option>
                                             ))}
                                         </select>
+
                                     </div>
                                 </div>
 
