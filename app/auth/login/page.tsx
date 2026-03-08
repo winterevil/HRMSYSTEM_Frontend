@@ -86,10 +86,10 @@ export default function LoginPage() {
                             </div>
                             {error && <div className="alert alert-danger">{error}</div>}
                             <div className="form-group">
-                                <label className="custom-control custom-checkbox">
-                                    <input type="checkbox" className="custom-control-input" />
-                                    <span className="custom-control-label">Remember me</span>
-                                </label>
+                                {/*<label className="custom-control custom-checkbox">*/}
+                                {/*    <input type="checkbox" className="custom-control-input" />*/}
+                                {/*    <span className="custom-control-label">Remember me</span>*/}
+                                {/*</label>*/}
                                 <label className="form-label"><a href="/auth/forgot-password" className="float-right small">I forgot password</a></label>
                             </div>
                             <div className="form-footer">
