@@ -133,57 +133,56 @@ export default function HeaderTop() {
                                 <path d="M7.01 17h.005" /><path d="M10.01 17h.005" />
                             </svg>
                         </a>
-
-                        {/* ================= CHAT ICON (GIỮ NGUYÊN SVG) ================= */}
-                        <a
-                            href="/main/hrms/chat"
-                            className="nav-link icon xs-hide"
-                            title="Chat"
-                            style={{ position: "relative" }}
-                        >
-                            {/* ✅ SVG ICON GỐC – KHÔNG ĐỔI */}
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
+                        {user?.role !== "Admin" && (
+                            <a
+                                href="/main/hrms/chat"
+                                className="nav-link icon xs-hide"
+                                title="Chat"
+                                style={{ position: "relative" }}
                             >
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
-                                <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
-                            </svg>
-
-                            {/* 🔴 BADGE CHƯA ĐỌC */}
-                            {unreadTotal > 0 && (
-                                <span
-                                    style={{
-                                        position: "absolute",
-                                        top: -4,
-                                        right: -6,
-                                        minWidth: 18,
-                                        height: 18,
-                                        padding: "0 5px",
-                                        borderRadius: 9,
-                                        background: "#e53935",
-                                        color: "#fff",
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        lineHeight: "18px",
-                                        boxShadow: "0 0 0 2px #fff"
-                                    }}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                 >
-                                    {unreadTotal > 9 ? "9+" : unreadTotal}
-                                </span>
-                            )}
-                        </a>
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
+                                    <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
+                                </svg>
+
+                                {/* 🔴BADGE CHƯA ĐỌC */}
+                                {unreadTotal > 0 && (
+                                    <span
+                                        style={{
+                                            position: "absolute",
+                                            top: -4,
+                                            right: -6,
+                                            minWidth: 18,
+                                            height: 18,
+                                            padding: "0 5px",
+                                            borderRadius: 9,
+                                            background: "#e53935",
+                                            color: "#fff",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            lineHeight: "18px",
+                                            boxShadow: "0 0 0 2px #fff"
+                                        }}
+                                    >
+                                        {unreadTotal > 9 ? "9+" : unreadTotal}
+                                    </span>
+                                )}
+                            </a>
+                        )}
                     </div>
                 </div>
 
